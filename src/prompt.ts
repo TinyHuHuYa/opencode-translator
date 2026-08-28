@@ -89,7 +89,7 @@ export function renderSystemPrompt(context: Omit<PromptContext, "text" | "from">
     "{{terms_prompt}}": renderTerms(context.terms),
     "{{imt_style_guide}}": optionalBlock("Style Guide", context.styleGuide ?? ""),
   }
-  return Object.entries(replacements).reduce((prompt, [placeholder, value]) => prompt.split(placeholder).join(value), SYSTEM_PROMPT_TEMPLATE)
+  return SYSTEM_PROMPT_TEMPLATE.replace(/{{(?:to|title_prompt|summary_prompt|terms_prompt|imt_style_guide)}}/g, (placeholder) => replacements[placeholder])
 }
 
 export function renderUserPrompt(context: Pick<PromptContext, "to" | "text" | "from"> & { text: string }): string {

@@ -50,7 +50,10 @@ export function decodeCommandEnvelope(text: string): CommandRequest | undefined 
   if (!text.startsWith(COMMAND_ENVELOPE_PREFIX)) return undefined
   try {
     const payload = text.slice(COMMAND_ENVELOPE_PREFIX.length)
-    const value: unknown = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"))
+    if (!/^[A-Za-z0-9_-]+$/.test(payload)) return undefined
+    const decoded = Buffer.from(payload, "base64url")
+    if (decoded.toString("base64url") !== payload) return undefined
+    const value: unknown = JSON.parse(decoded.toString("utf8"))
     if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined
     if (Object.keys(value).length !== 2 || typeof (value as Record<string, unknown>).to !== "string" || typeof (value as Record<string, unknown>).text !== "string") return undefined
     const request = value as CommandRequest

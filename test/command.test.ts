@@ -25,3 +25,10 @@ test("does not mistake malformed prefixed user text for an envelope", () => {
   expect(decodeCommandEnvelope("__OPENCODE_TRANSLATOR_V1__:not-valid")).toBeUndefined()
   expect(decodeCommandEnvelope("ordinary text")).toBeUndefined()
 })
+
+test("rejects valid envelopes with trailing invalid base64url characters", () => {
+  const envelope = encodeCommandEnvelope({ to: "中文", text: "Hello" })
+  expect(decodeCommandEnvelope(`${envelope}!`)).toBeUndefined()
+  expect(decodeCommandEnvelope(`${envelope}=`)).toBeUndefined()
+  expect(decodeCommandEnvelope(`${envelope}\n`)).toBeUndefined()
+})

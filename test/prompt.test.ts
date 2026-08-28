@@ -35,3 +35,16 @@ test("uses an explicit source language when provided", () => {
     "Source language: English\nTarget language: 中文\n\nHello",
   )
 })
+
+test("does not recursively expand placeholder-looking context values", () => {
+  const prompt = renderSystemPrompt({
+    to: "{{title_prompt}}",
+    title: "{{summary_prompt}}",
+    summary: "{{terms_prompt}}",
+    styleGuide: "{{imt_style_guide}}",
+  })
+  expect(prompt).toContain("professional {{title_prompt}} native translator")
+  expect(prompt).toContain("\n\n{{summary_prompt}}")
+  expect(prompt).toContain("\n\n{{terms_prompt}}")
+  expect(prompt).toContain("\n\n{{imt_style_guide}}")
+})
