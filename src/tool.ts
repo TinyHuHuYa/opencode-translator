@@ -114,12 +114,35 @@ async function logCleanupFailure(
   sessionID: string,
   cleanupError: unknown,
 ): Promise<void> {
-  const message = `Failed to delete translation child session: ${toPublicError(cleanupError).message}`
+  const message = cleanupDiagnostic(cleanupError)
   try {
     await gateway.logCleanupFailure(sessionID, message)
   } catch (loggingError) {
     // A failed diagnostic sink cannot replace a translation result or primary error.
     void loggingError
+  }
+}
+
+function isSafeDiagnosticToken(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(value)
+}
+
+function cleanupDiagnostic(error: unknown): string {
+  const prefix = "Failed to delete translation child session: "
+  if (typeof error !== "object" || error === null) return `${prefix}cleanup failed`
+
+  try {
+    const value = error as { name?: unknown; code?: unknown; status?: unknown }
+    const details: string[] = []
+    if (isSafeDiagnosticToken(value.name) && value.name !== "Error") details.push(`name=${value.name}`)
+    if (isSafeDiagnosticToken(value.code)) details.push(`code=${value.code}`)
+    if (typeof value.status === "number" && Number.isInteger(value.status) && value.status >= 100 && value.status <= 599) {
+      details.push(`status=${value.status}`)
+    }
+    return details.length ? `${prefix}${details.join(" ")}` : `${prefix}cleanup failed`
+  } catch (summaryError) {
+    void summaryError
+    return `${prefix}cleanup failed`
   }
 }
 

@@ -168,7 +168,7 @@ test("keeps a successful translation when child-session cleanup fails", async ()
   expect(gateway.deletedSessions).toEqual(["child-session"])
   expect(gateway.cleanupLogs).toEqual([{
     sessionID: "child-session",
-    message: "Failed to delete translation child session: Translation failed",
+    message: "Failed to delete translation child session: cleanup failed",
   }])
 })
 
@@ -182,7 +182,7 @@ test("keeps the primary translation error when cleanup also fails", async () => 
   expect(error).toBeInstanceOf(Error)
   expect((error as Error).message).toBe("Translation failed (provider/model)")
   expect(gateway.cleanupLogs).toHaveLength(1)
-  expect(gateway.cleanupLogs[0].message).toContain("Translation failed")
+  expect(gateway.cleanupLogs[0].message).toContain("cleanup failed")
   expect(gateway.cleanupLogs[0].message).not.toContain("cleanup-secret")
   expect(gateway.cleanupLogs[0].message).not.toContain("source text")
 })
@@ -195,6 +195,37 @@ test("keeps a successful translation when cleanup logging fails", async () => {
   await expect(tool.execute({ to: "French", text: "hello" }, context())).resolves.toBe("bonjour")
 
   expect(gateway.cleanupLogs).toHaveLength(1)
+})
+
+test("records a distinct allowlisted cleanup diagnostic without error messages", async () => {
+  const first = createSubject()
+  first.gateway.deleteFailure = Object.assign(new Error("token=first-secret source text"), {
+    name: "SessionDeleteError",
+    code: "SESSION_GONE",
+    status: 404,
+  })
+  const second = createSubject()
+  second.gateway.deleteFailure = Object.assign(new Error("responseBody=second-secret"), {
+    name: "NetworkError",
+    code: "ETIMEDOUT",
+  })
+
+  await expect(first.tool.execute({ to: "French", text: "source text" }, context())).resolves.toBe("bonjour")
+  await expect(second.tool.execute({ to: "French", text: "source text" }, context())).resolves.toBe("bonjour")
+
+  const firstDiagnostic = first.gateway.cleanupLogs[0].message
+  const secondDiagnostic = second.gateway.cleanupLogs[0].message
+  expect(firstDiagnostic).toContain("SessionDeleteError")
+  expect(firstDiagnostic).toContain("SESSION_GONE")
+  expect(firstDiagnostic).toContain("404")
+  expect(secondDiagnostic).toContain("NetworkError")
+  expect(secondDiagnostic).toContain("ETIMEDOUT")
+  expect(firstDiagnostic).not.toBe(secondDiagnostic)
+  for (const diagnostic of [firstDiagnostic, secondDiagnostic]) {
+    expect(diagnostic).not.toContain("secret")
+    expect(diagnostic).not.toContain("source text")
+    expect(diagnostic).not.toContain("responseBody")
+  }
 })
 
 test("rejects a translation whose separator count differs from the source", async () => {
@@ -309,17 +340,65 @@ test("maps every session gateway operation to its typed OpenCode SDK request", a
   }])
 })
 
-test("fails safely when an OpenCode SDK response has no data", async () => {
-  const { client, responses } = createSdkClient()
-  responses.prompt = { error: { authorization: "secret", responseBody: "source text" } }
-  const gateway = createSessionGateway(client, "D:/project")
+test("fails safely for every OpenCode SDK operation that returns no data", async () => {
+  const operations = ["create", "prompt", "delete", "messages", "log"] as const
 
-  await expect(gateway.promptChild({
-    sessionID: "sdk-child",
-    agent: "agent",
-    model: { providerID: "provider", modelID: "model" },
-    system: "system",
-    text: "source text",
-    signal: new AbortController().signal,
-  })).rejects.toThrow("OpenCode session request failed")
+  for (const operation of operations) {
+    const { client, responses } = createSdkClient()
+    responses[operation] = { error: { authorization: "secret", responseBody: "source text" } }
+    const gateway = createSessionGateway(client, "D:/project")
+    const request = operation === "create"
+      ? gateway.createChild("parent")
+      : operation === "prompt"
+        ? gateway.promptChild({
+          sessionID: "sdk-child",
+          agent: "agent",
+          model: { providerID: "provider", modelID: "model" },
+          system: "system",
+          text: "source text",
+          signal: new AbortController().signal,
+        })
+        : operation === "delete"
+          ? gateway.deleteSession("sdk-child")
+          : operation === "messages"
+            ? gateway.loadHistory("parent")
+            : gateway.logCleanupFailure("sdk-child", "safe diagnostic")
+
+    const error = await request.catch((value) => value)
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toBe("OpenCode session request failed")
+    expect((error as Error).message).not.toContain("secret")
+    expect((error as Error).message).not.toContain("source text")
+  }
+})
+
+test("keeps tool outcomes stable when SDK cleanup or cleanup logging has no data", async () => {
+  const deleteFailure = createSdkClient()
+  deleteFailure.responses.delete = { error: { authorization: "delete-secret" } }
+  const deleteGateway = createSessionGateway(deleteFailure.client, "D:/project")
+  const deleteModels = new ModelTracker()
+  deleteModels.remember("parent-session", { providerID: "provider", modelID: "model" })
+  const deleteTool = createTranslateTool({
+    gateway: deleteGateway,
+    models: deleteModels,
+    options: normalizeOptions(),
+  })
+
+  await expect(deleteTool.execute({ to: "French", text: "hello" }, context())).resolves.toBe("bonjour")
+  expect(deleteFailure.calls.log).toHaveLength(1)
+
+  const logFailure = createSdkClient()
+  logFailure.responses.delete = { error: { authorization: "delete-secret" } }
+  logFailure.responses.log = { error: { authorization: "log-secret" } }
+  const logGateway = createSessionGateway(logFailure.client, "D:/project")
+  const logModels = new ModelTracker()
+  logModels.remember("parent-session", { providerID: "provider", modelID: "model" })
+  const logTool = createTranslateTool({
+    gateway: logGateway,
+    models: logModels,
+    options: normalizeOptions(),
+  })
+
+  await expect(logTool.execute({ to: "French", text: "hello" }, context())).resolves.toBe("bonjour")
+  expect(logFailure.calls.log).toHaveLength(1)
 })
