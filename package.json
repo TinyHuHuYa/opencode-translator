@@ -30,6 +30,14 @@
     "plugin"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TinyHuHuYa/opencode-translator.git"
+  },
+  "homepage": "https://github.com/TinyHuHuYa/opencode-translator#readme",
+  "bugs": {
+    "url": "https://github.com/TinyHuHuYa/opencode-translator/issues"
+  },
   "dependencies": {
     "@opencode-ai/plugin": "1.18.23"
   },
