@@ -45,7 +45,20 @@ test("redacts headers tokens and response bodies", () => {
 
 test("does not expose unknown error payloads", () => {
   const error = toPublicError({ message: "safe", source: "original text", apiKey: "secret-key" })
-  expect(error.message).toBe("safe")
+  expect(error.message).toBe("Translation failed")
   expect(error.message).not.toContain("original text")
   expect(error.message).not.toContain("secret-key")
+})
+
+test("does not expose an external Error message", () => {
+  const error = toPublicError(new Error("token=secret"))
+  expect(error.message).toBe("Translation failed")
+  expect(error.message).not.toContain("token=secret")
+})
+
+test("does not expose an unknown response message", () => {
+  const error = toPublicError({ message: "responseBody=<原文>; authorization=secret" })
+  expect(error.message).toBe("Translation failed")
+  expect(error.message).not.toContain("原文")
+  expect(error.message).not.toContain("secret")
 })

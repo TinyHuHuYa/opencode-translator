@@ -46,10 +46,12 @@ export function validateTranslation(source: string, output: string): string {
 
 export function toPublicError(error: unknown, model?: ModelRef): Error {
   let message = "Translation failed"
-  if (error instanceof Error && error.message) message = error.message
-  else if (typeof error === "object" && error !== null) {
-    const candidate = (error as Record<string, unknown>).message
-    if (typeof candidate === "string" && candidate) message = candidate
+  if (error instanceof TranslationFormatError &&
+    Number.isSafeInteger(error.expectedSeparators) &&
+    Number.isSafeInteger(error.actualSeparators)) {
+    message = `Translation separator count mismatch: expected ${error.expectedSeparators}, got ${error.actualSeparators}`
+  } else if (error instanceof Error && error.message === "Translation output is empty") {
+    message = error.message
   }
   const modelLabel = model && model.providerID && model.modelID
     ? ` (${model.providerID}/${model.modelID})`
