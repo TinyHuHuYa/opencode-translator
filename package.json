@@ -22,6 +22,7 @@
     "build": "tsup src/index.ts --format esm --dts --clean --external @opencode-ai/plugin",
     "check": "npm test && npm run typecheck && npm run build",
     "prepare": "npm run build",
+    "deploy:local": "npm run build && node scripts/deploy-local.mjs",
     "prepublishOnly": "npm run check"
   },
   "keywords": [

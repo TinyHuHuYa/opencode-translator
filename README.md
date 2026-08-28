@@ -9,16 +9,18 @@
 ### 方式一：本地构建产物（未发布到 npm 时使用）
 
 ```sh
-npm install   # 触发 prepare 脚本，自动构建 dist/
-npm run build # 或手动构建
+npm install        # 触发 prepare 脚本，自动构建 dist/
+npm run deploy:local  # 构建并复制到 OpenCode 全局插件目录
 ```
 
-把 `dist/index.js` 复制到 OpenCode 的插件自动发现目录，文件名任意：
+`deploy:local` 会把 `dist/index.js` 复制到 `~/.config/opencode/plugin/opencode-translator.js`（可用 `OPENCODE_PLUGIN_DIR` 或 `XDG_CONFIG_HOME` 覆盖目标）。也可以手动复制到任一自动发现目录，文件名任意：
 
 - 全局（所有项目）：`~/.config/opencode/plugin/opencode-translator.js`
 - 单项目：`<项目>/.opencode/plugin/opencode-translator.js`
 
-重启 OpenCode。`plugin` 与 `plugins` 两个目录名都可用。此方式**无法传入配置选项**，命令名、温度、术语表、风格指南均取 `src/config.ts` 中的默认值；需要自定义时直接修改该文件顶部的 `DEFAULT_*` 常量后重新构建。
+**每次改动源码后都要重新 `npm run deploy:local` 并重启 OpenCode**，否则加载的还是旧构建。不要同时放全局和单项目两份，否则第二份的 `config` hook 会因命令名冲突报错（但其它 hook 仍会运行，导致行为异常）。
+
+`plugin` 与 `plugins` 两个目录名都可用。此方式**无法传入配置选项**，命令名、温度、术语表、风格指南均取 `src/config.ts` 中的默认值；需要自定义时直接修改该文件顶部的 `DEFAULT_*` 常量后重新构建。
 
 ### 方式二：已发布的 npm 包
 
