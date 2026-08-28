@@ -1,0 +1,45 @@
+{
+  "name": "opencode-translator",
+  "version": "0.1.0",
+  "description": "Translate text with the model currently selected in OpenCode.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "build": "tsup src/index.ts --format esm --dts --clean --external @opencode-ai/plugin",
+    "check": "npm test && npm run typecheck && npm run build",
+    "prepublishOnly": "npm run check"
+  },
+  "keywords": [
+    "opencode",
+    "translation",
+    "translator",
+    "plugin"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@opencode-ai/plugin": "1.18.23"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.0",
+    "bun": "1.4.0",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
