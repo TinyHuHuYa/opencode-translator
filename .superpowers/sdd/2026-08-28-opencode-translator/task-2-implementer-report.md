@@ -22,7 +22,7 @@ Implemented prompt rendering in `src/prompt.ts` and `/t` command parsing/interna
 
 ## Commit
 
-Pending at report authoring time; commit hash is appended after commit.
+Final commit: `fd0c57d6ef24ee9fa63c02cdb6015340aba2d3cf`.
 
 ## Risks / open items
 
