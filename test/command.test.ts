@@ -32,3 +32,7 @@ test("rejects valid envelopes with trailing invalid base64url characters", () =>
   expect(decodeCommandEnvelope(`${envelope}=`)).toBeUndefined()
   expect(decodeCommandEnvelope(`${envelope}\n`)).toBeUndefined()
 })
+
+test("preserves trailing whitespace in command source text", () => {
+  expect(parseCommandArguments("中文 Hello  \n")).toEqual({ to: "中文", text: "Hello  \n" })
+})
