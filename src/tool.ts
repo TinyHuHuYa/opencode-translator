@@ -123,23 +123,16 @@ async function logCleanupFailure(
   }
 }
 
-function isSafeDiagnosticToken(value: unknown): value is string {
-  return typeof value === "string" && /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(value)
-}
-
 function cleanupDiagnostic(error: unknown): string {
   const prefix = "Failed to delete translation child session: "
   if (typeof error !== "object" || error === null) return `${prefix}cleanup failed`
 
   try {
-    const value = error as { name?: unknown; code?: unknown; status?: unknown }
-    const details: string[] = []
-    if (isSafeDiagnosticToken(value.name) && value.name !== "Error") details.push(`name=${value.name}`)
-    if (isSafeDiagnosticToken(value.code)) details.push(`code=${value.code}`)
+    const value = error as { status?: unknown }
     if (typeof value.status === "number" && Number.isInteger(value.status) && value.status >= 100 && value.status <= 599) {
-      details.push(`status=${value.status}`)
+      return `${prefix}status=${value.status}`
     }
-    return details.length ? `${prefix}${details.join(" ")}` : `${prefix}cleanup failed`
+    return `${prefix}cleanup failed`
   } catch (summaryError) {
     void summaryError
     return `${prefix}cleanup failed`

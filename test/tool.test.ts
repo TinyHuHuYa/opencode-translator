@@ -197,17 +197,18 @@ test("keeps a successful translation when cleanup logging fails", async () => {
   expect(gateway.cleanupLogs).toHaveLength(1)
 })
 
-test("records a distinct allowlisted cleanup diagnostic without error messages", async () => {
+test("records only numeric HTTP status in cleanup diagnostics", async () => {
   const first = createSubject()
   first.gateway.deleteFailure = Object.assign(new Error("token=first-secret source text"), {
-    name: "SessionDeleteError",
-    code: "SESSION_GONE",
+    name: "source-text",
+    code: "secret-token",
     status: 404,
   })
   const second = createSubject()
   second.gateway.deleteFailure = Object.assign(new Error("responseBody=second-secret"), {
-    name: "NetworkError",
-    code: "ETIMEDOUT",
+    name: "authorization",
+    code: "response-body",
+    status: 503,
   })
 
   await expect(first.tool.execute({ to: "French", text: "source text" }, context())).resolves.toBe("bonjour")
@@ -215,17 +216,31 @@ test("records a distinct allowlisted cleanup diagnostic without error messages",
 
   const firstDiagnostic = first.gateway.cleanupLogs[0].message
   const secondDiagnostic = second.gateway.cleanupLogs[0].message
-  expect(firstDiagnostic).toContain("SessionDeleteError")
-  expect(firstDiagnostic).toContain("SESSION_GONE")
-  expect(firstDiagnostic).toContain("404")
-  expect(secondDiagnostic).toContain("NetworkError")
-  expect(secondDiagnostic).toContain("ETIMEDOUT")
+  expect(firstDiagnostic).toBe("Failed to delete translation child session: status=404")
+  expect(secondDiagnostic).toBe("Failed to delete translation child session: status=503")
   expect(firstDiagnostic).not.toBe(secondDiagnostic)
   for (const diagnostic of [firstDiagnostic, secondDiagnostic]) {
     expect(diagnostic).not.toContain("secret")
     expect(diagnostic).not.toContain("source text")
     expect(diagnostic).not.toContain("responseBody")
+    expect(diagnostic).not.toContain("source-text")
+    expect(diagnostic).not.toContain("secret-token")
+    expect(diagnostic).not.toContain("authorization")
+    expect(diagnostic).not.toContain("response-body")
   }
+})
+
+test("uses the fixed cleanup summary for a non-HTTP status", async () => {
+  const { gateway, tool } = createSubject()
+  gateway.deleteFailure = Object.assign(new Error("token=secret"), {
+    name: "source-text",
+    code: "secret-token",
+    status: 700,
+  })
+
+  await expect(tool.execute({ to: "French", text: "hello" }, context())).resolves.toBe("bonjour")
+
+  expect(gateway.cleanupLogs[0].message).toBe("Failed to delete translation child session: cleanup failed")
 })
 
 test("rejects a translation whose separator count differs from the source", async () => {
