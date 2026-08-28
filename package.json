@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "description": "Translate text with the model currently selected in OpenCode.",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/opencode-translator.js",
+  "types": "./dist/opencode-translator.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/opencode-translator.d.ts",
+      "import": "./dist/opencode-translator.js"
     }
   },
   "files": [
@@ -19,7 +19,7 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "build": "tsup src/index.ts --format esm --dts --clean --external @opencode-ai/plugin",
+    "build": "tsup --entry.opencode-translator=src/index.ts --format esm --dts --clean --external @opencode-ai/plugin",
     "check": "npm test && npm run typecheck && npm run build",
     "prepare": "npm run build",
     "deploy:local": "npm run build && node scripts/deploy-local.mjs",

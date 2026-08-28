@@ -6,44 +6,55 @@
 
 ## 安装
 
-### 方式一：本地构建产物（未发布到 npm 时使用）
+### 方式一：下载预构建文件（推荐）
+
+1. 从 [Releases](https://github.com/TinyHuHuYa/opencode-translator/releases) 下载 `opencode-translator.js`。
+2. 放进 OpenCode 的插件自动发现目录，**文件名保持不变**：
+   - 全局（所有项目）：`~/.config/opencode/plugin/opencode-translator.js`
+   - 单项目：`<项目>/.opencode/plugin/opencode-translator.js`
+3. 重启 OpenCode。
+
+更新时下载新版覆盖同一文件、重启即可。`plugin` 与 `plugins` 两个目录名都可用。不要同时放全局和单项目两份，否则第二份的 `config` hook 会因命令名冲突报错（且其它 hook 仍会运行，导致行为异常）。
+
+此方式**无法传入配置选项**，命令名、温度、术语表、风格指南均取 `src/config.ts` 顶部 `DEFAULT_*` 常量的值。需要自定义见「方式二」。
+
+### 方式二：从源码构建
 
 ```sh
-npm install        # 触发 prepare 脚本，自动构建 dist/
-npm run deploy:local  # 构建并复制到 OpenCode 全局插件目录
+git clone https://github.com/TinyHuHuYa/opencode-translator.git
+cd opencode-translator
+npm install            # prepare 脚本会自动构建 dist/
+# 需要自定义时，编辑 src/config.ts 顶部的 DEFAULT_* 常量
+npm run deploy:local   # 构建并复制到 ~/.config/opencode/plugin/
 ```
 
-`deploy:local` 会把 `dist/index.js` 复制到 `~/.config/opencode/plugin/opencode-translator.js`（可用 `OPENCODE_PLUGIN_DIR` 或 `XDG_CONFIG_HOME` 覆盖目标）。也可以手动复制到任一自动发现目录，文件名任意：
+`deploy:local` 把 `dist/opencode-translator.js` 复制到 `~/.config/opencode/plugin/opencode-translator.js`（可用 `OPENCODE_PLUGIN_DIR` 或 `XDG_CONFIG_HOME` 覆盖目标）。**每次改动源码后都要重新 `npm run deploy:local` 并重启 OpenCode。**
 
-- 全局（所有项目）：`~/.config/opencode/plugin/opencode-translator.js`
-- 单项目：`<项目>/.opencode/plugin/opencode-translator.js`
+### 方式三：npm 包（发布后可用）
 
-**每次改动源码后都要重新 `npm run deploy:local` 并重启 OpenCode**，否则加载的还是旧构建。不要同时放全局和单项目两份，否则第二份的 `config` hook 会因命令名冲突报错（但其它 hook 仍会运行，导致行为异常）。
-
-`plugin` 与 `plugins` 两个目录名都可用。此方式**无法传入配置选项**，命令名、温度、术语表、风格指南均取 `src/config.ts` 中的默认值；需要自定义时直接修改该文件顶部的 `DEFAULT_*` 常量后重新构建。
-
-### 方式二：已发布的 npm 包
+包发布到 npm 后，可在 OpenCode 配置里直接引用，并通过数组元组形式传选项：
 
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
   "plugin": [
-    [
-      "opencode-translator",
-      {
-        "command": "t",
-        "temperature": 0,
-        "styleGuide": "",
-        "terms": {}
-      }
-    ]
+    ["opencode-translator", { "command": "t", "temperature": 0, "styleGuide": "", "terms": {} }]
   ]
 }
 ```
 
-数组元组形式 `["包名", { 选项 }]` 才能覆盖默认值。该形式目前仅对 npm 包名生效，`file://` 路径不会加载插件。
+`file://` 路径写进 `plugin` 数组不会加载插件；只有 npm 包名与自动发现目录两种方式可用。
 
-重启 OpenCode 或重新打开会话后，插件会注册命令和工具。若配置的命令名已存在，或 `opencode-translator` 代理名已存在，OpenCode 会显示冲突错误；插件不会覆盖原有配置。
+安装后重启 OpenCode 或重新打开会话，插件会注册命令和工具。若配置的命令名已存在，或 `opencode-translator` 代理名已存在，OpenCode 会显示冲突错误；插件不会覆盖原有配置。
+
+## 发布新版本（维护者）
+
+```sh
+npm version patch          # 更新版本号并打 tag
+git push --follow-tags
+```
+
+推送 `v*` tag 会触发 `.github/workflows/release.yml`：CI 跑 `npm run check`，然后创建 GitHub Release 并附上 `dist/opencode-translator.js`。
 
 ## 使用 `/t`
 

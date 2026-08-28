@@ -6,7 +6,7 @@ import { copyFileSync, mkdirSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-const source = join(process.cwd(), "dist", "index.js")
+const source = join(process.cwd(), "dist", "opencode-translator.js")
 const target =
   process.env.OPENCODE_PLUGIN_DIR ??
   join(
