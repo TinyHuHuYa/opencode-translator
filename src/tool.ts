@@ -2,7 +2,7 @@ import { tool, type PluginInput } from "@opencode-ai/plugin"
 import { INTERNAL_AGENT_ID, type NormalizedOptions, type Terms } from "./config"
 import { type HistoryEntry, ModelTracker } from "./model"
 import { renderSystemPrompt, renderUserPrompt } from "./prompt"
-import { extractAssistantText, toPublicError, validateTranslation } from "./result"
+import { extractAssistantText, toPublicError, TranslationFormatError, validateTranslation } from "./result"
 
 export type SessionGateway = {
   createChild(parentID: string): Promise<string>
@@ -102,14 +102,24 @@ function publicToolError(error: unknown, model?: { providerID: string; modelID: 
     error.message.startsWith("Invalid to:") ||
     error.message.startsWith("Invalid text:")
   )) return error
-  return toPublicError(error, model)
+  const publicError = toPublicError(error, model)
+  if (error instanceof TranslationFormatError) {
+    return new Error(publicError.message, { cause: error })
+  }
+  return publicError
 }
 
-async function logCleanupFailure(gateway: SessionGateway, sessionID: string): Promise<void> {
+async function logCleanupFailure(
+  gateway: SessionGateway,
+  sessionID: string,
+  cleanupError: unknown,
+): Promise<void> {
+  const message = `Failed to delete translation child session: ${toPublicError(cleanupError).message}`
   try {
-    await gateway.logCleanupFailure(sessionID, "Failed to delete translation child session")
-  } catch {
-    // Cleanup diagnostics must never replace a translation result or its primary error.
+    await gateway.logCleanupFailure(sessionID, message)
+  } catch (loggingError) {
+    // A failed diagnostic sink cannot replace a translation result or primary error.
+    void loggingError
   }
 }
 
@@ -162,8 +172,8 @@ export function createTranslateTool(dependencies: TranslateToolDependencies): Re
         if (childSessionID) {
           try {
             await dependencies.gateway.deleteSession(childSessionID)
-          } catch {
-            await logCleanupFailure(dependencies.gateway, childSessionID)
+          } catch (cleanupError) {
+            await logCleanupFailure(dependencies.gateway, childSessionID, cleanupError)
           }
         }
       }
