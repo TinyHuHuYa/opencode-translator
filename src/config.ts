@@ -18,13 +18,6 @@ export type NormalizedOptions = {
   terms: Terms
 }
 
-const DEFAULT_OPTIONS: NormalizedOptions = {
-  command: "t",
-  temperature: 0.1,
-  styleGuide: "",
-  terms: {},
-}
-
 function isTerms(value: unknown): value is Terms {
   if (Array.isArray(value)) return value.every((term) => typeof term === "string")
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false
@@ -33,11 +26,12 @@ function isTerms(value: unknown): value is Terms {
 }
 
 export function normalizeOptions(raw: Record<string, unknown> = {}): NormalizedOptions {
+  const terms = raw.terms === undefined ? {} : raw.terms as Terms
   const options: NormalizedOptions = {
-    command: raw.command === undefined ? DEFAULT_OPTIONS.command : raw.command as string,
-    temperature: raw.temperature === undefined ? DEFAULT_OPTIONS.temperature : raw.temperature as number,
-    styleGuide: raw.styleGuide === undefined ? DEFAULT_OPTIONS.styleGuide : raw.styleGuide as string,
-    terms: raw.terms === undefined ? DEFAULT_OPTIONS.terms : raw.terms as Terms,
+    command: raw.command === undefined ? "t" : raw.command as string,
+    temperature: raw.temperature === undefined ? 0.1 : raw.temperature as number,
+    styleGuide: raw.styleGuide === undefined ? "" : raw.styleGuide as string,
+    terms,
   }
 
   if (typeof options.command !== "string" || !/^[A-Za-z][A-Za-z0-9_-]*$/.test(options.command)) {
@@ -48,6 +42,7 @@ export function normalizeOptions(raw: Record<string, unknown> = {}): NormalizedO
   }
   if (typeof options.styleGuide !== "string") throw new Error("Invalid styleGuide: expected a string")
   if (!isTerms(options.terms)) throw new Error("Invalid terms: expected string[] or a string-to-string object")
+  options.terms = Array.isArray(options.terms) ? [...options.terms] : { ...options.terms }
   return options
 }
 

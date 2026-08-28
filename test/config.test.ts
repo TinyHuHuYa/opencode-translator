@@ -11,6 +11,12 @@ describe("normalizeOptions", () => {
     })
   })
 
+  test("does not share the default terms object between calls", () => {
+    const first = normalizeOptions()
+    ;(first.terms as Record<string, string>).example = "示例"
+    expect(normalizeOptions().terms).toEqual({})
+  })
+
   test("rejects an invalid command name", () => {
     expect(() => normalizeOptions({ command: "bad command" })).toThrow("command")
   })
