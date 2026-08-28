@@ -6,7 +6,21 @@
 
 ## 安装
 
-在 OpenCode 的配置文件中加入插件。下面的示例使用 npm 包名；OpenCode 会负责加载已配置的插件。
+### 方式一：本地构建产物（未发布到 npm 时使用）
+
+```sh
+npm install   # 触发 prepare 脚本，自动构建 dist/
+npm run build # 或手动构建
+```
+
+把 `dist/index.js` 复制到 OpenCode 的插件自动发现目录，文件名任意：
+
+- 全局（所有项目）：`~/.config/opencode/plugin/opencode-translator.js`
+- 单项目：`<项目>/.opencode/plugin/opencode-translator.js`
+
+重启 OpenCode。`plugin` 与 `plugins` 两个目录名都可用。此方式**无法传入配置选项**，命令名、温度、术语表、风格指南均取 `src/config.ts` 中的默认值；需要自定义时直接修改该文件顶部的 `DEFAULT_*` 常量后重新构建。
+
+### 方式二：已发布的 npm 包
 
 ```jsonc
 {
@@ -16,7 +30,7 @@
       "opencode-translator",
       {
         "command": "t",
-        "temperature": 0.1,
+        "temperature": 0,
         "styleGuide": "",
         "terms": {}
       }
@@ -25,11 +39,7 @@
 }
 ```
 
-如果尚未安装该包，可在需要使用它的环境中执行：
-
-```sh
-npm install opencode-translator
-```
+数组元组形式 `["包名", { 选项 }]` 才能覆盖默认值。该形式目前仅对 npm 包名生效，`file://` 路径不会加载插件。
 
 重启 OpenCode 或重新打开会话后，插件会注册命令和工具。若配置的命令名已存在，或 `opencode-translator` 代理名已存在，OpenCode 会显示冲突错误；插件不会覆盖原有配置。
 
@@ -76,9 +86,11 @@ npm install opencode-translator
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
 | `command` | `"t"` | `/t` 的命令名；必须以字母开头，后续仅可含字母、数字、`_` 或 `-`。 |
-| `temperature` | `0.1` | 翻译代理的温度，范围为 0 到 2。 |
-| `styleGuide` | `""` | 每次翻译可参考的默认风格指南。工具调用可覆盖它。 |
-| `terms` | `{}` | 默认术语表：字符串数组或字符串到字符串的对象。工具调用可覆盖它。 |
+| `temperature` | `0` | 翻译代理的温度，范围为 0 到 2。 |
+| `styleGuide` | 见 `DEFAULT_STYLE_GUIDE` | 面向简体中文技术读者的默认风格指南。工具调用可覆盖它。 |
+| `terms` | 见 `DEFAULT_TERMS` | 默认术语表（技术常见词）。字符串数组或字符串到字符串的对象。工具调用可覆盖它。 |
+
+本地构建产物方式安装时无法传选项，请直接编辑 `src/config.ts` 顶部的 `DEFAULT_COMMAND`、`DEFAULT_TEMPERATURE`、`DEFAULT_STYLE_GUIDE`、`DEFAULT_TERMS` 后重新 `npm run build`。
 
 初始版本没有模型、提供商、API URL、API Key、字符上限、频率限制、分块大小或重试配置。模型选择仍由 OpenCode 会话控制。
 

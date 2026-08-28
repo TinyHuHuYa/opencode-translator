@@ -1,20 +1,28 @@
 import { describe, expect, test } from "bun:test"
-import { installPluginConfig, normalizeOptions } from "../src/config"
+import {
+  DEFAULT_COMMAND,
+  DEFAULT_STYLE_GUIDE,
+  DEFAULT_TEMPERATURE,
+  DEFAULT_TERMS,
+  installPluginConfig,
+  normalizeOptions,
+} from "../src/config"
 
 describe("normalizeOptions", () => {
-  test("uses stable defaults", () => {
+  test("uses the configured local-install defaults", () => {
     expect(normalizeOptions()).toEqual({
-      command: "t",
-      temperature: 0.1,
-      styleGuide: "",
-      terms: {},
+      command: DEFAULT_COMMAND,
+      temperature: DEFAULT_TEMPERATURE,
+      styleGuide: DEFAULT_STYLE_GUIDE,
+      terms: { ...(DEFAULT_TERMS as Record<string, string>) },
     })
   })
 
   test("does not share the default terms object between calls", () => {
     const first = normalizeOptions()
     ;(first.terms as Record<string, string>).example = "示例"
-    expect(normalizeOptions().terms).toEqual({})
+    expect(normalizeOptions().terms).toEqual({ ...(DEFAULT_TERMS as Record<string, string>) })
+    expect((normalizeOptions().terms as Record<string, string>).example).toBeUndefined()
   })
 
   test("rejects an invalid command name", () => {

@@ -21,6 +21,7 @@
     "typecheck": "tsc --noEmit",
     "build": "tsup src/index.ts --format esm --dts --clean --external @opencode-ai/plugin",
     "check": "npm test && npm run typecheck && npm run build",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run check"
   },
   "keywords": [
