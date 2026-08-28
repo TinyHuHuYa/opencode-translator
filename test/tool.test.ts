@@ -260,7 +260,7 @@ test("keeps raw format output in an error cause but not its public message or cl
   gateway.promptResult = [{ type: "text", text: rawOutput }]
   gateway.deleteFailure = new Error("cleanup failed")
 
-  const error = await tool.execute({ to: "French", text: "hello" }, context()).catch((value) => value)
+  const error = await tool.execute({ to: "French", text: "a %% b %% c" }, context()).catch((value) => value)
 
   expect(error).toBeInstanceOf(Error)
   expect((error as Error).message).not.toContain(rawOutput)

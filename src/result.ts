@@ -34,14 +34,30 @@ function countSeparators(value: string): number {
   return count
 }
 
+/**
+ * Remove `%%` markers the model added on its own. Only used when the source
+ * had none, so every `%%` in the output is a stray separator: collapse the
+ * canonical `\n\n%%\n\n` paragraph break first, then drop any loose `%%`
+ * along with the whitespace it introduced.
+ */
+function removeStraySeparators(output: string): string {
+  return output
+    .replace(/\n{2,}[^\S\n]*%%[^\S\n]*\n{2,}/g, "\n\n")
+    .replace(/[^\S\n]*%%[^\S\n]*/g, "")
+    .trim()
+}
+
 export function validateTranslation(source: string, output: string): string {
   if (!output.trim()) throw new Error("Translation output is empty")
   const expectedSeparators = countSeparators(source)
   const actualSeparators = countSeparators(output)
-  if (expectedSeparators !== actualSeparators) {
-    throw new TranslationFormatError(expectedSeparators, actualSeparators, output)
+  if (expectedSeparators === actualSeparators) return output
+  if (expectedSeparators === 0) {
+    const cleaned = removeStraySeparators(output)
+    if (!cleaned) throw new Error("Translation output is empty")
+    return cleaned
   }
-  return output
+  throw new TranslationFormatError(expectedSeparators, actualSeparators, output)
 }
 
 export function toPublicError(error: unknown, model?: ModelRef): Error {

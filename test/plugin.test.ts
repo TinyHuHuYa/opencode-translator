@@ -164,6 +164,17 @@ test("validates only pending /t output and removes state after validation", asyn
   )).resolves.toBeUndefined()
 })
 
+test("strips a model-added separator from /t output when the source had none", async () => {
+  const { hooks } = await makeHooks()
+  await prepareTranslation(hooks, "clean", "One line.\n\nTwo lines.")
+  const output = { text: "第一行。\n\n%%\n\n第二行。" }
+  await hooks["experimental.text.complete"]?.(
+    { sessionID: "clean", messageID: "message", partID: "part" },
+    output,
+  )
+  expect(output.text).toBe("第一行。\n\n第二行。")
+})
+
 test("clears pending validation for session errors, idle sessions, and deleted sessions", async () => {
   const { hooks } = await makeHooks()
   for (const [sessionID, event] of [

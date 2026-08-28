@@ -51,7 +51,7 @@ const server: Plugin = async (input, rawOptions) => {
       const source = pendingSources.get(event.sessionID)
       if (source === undefined) return
       try {
-        validateTranslation(source, output.text)
+        output.text = validateTranslation(source, output.text)
       } finally {
         pendingSources.delete(event.sessionID)
       }

@@ -13,8 +13,22 @@ test("returns empty text when a response has no text parts", () => {
   expect(extractAssistantText([{ type: "reasoning", text: "hidden" }])).toBe("")
 })
 
-test("rejects separators added by the model", () => {
-  expect(() => validateTranslation("hello", "你好 %%")).toThrow("separator")
+test("strips a stray separator the model added when the source had none", () => {
+  expect(validateTranslation("hello", "你好 %%")).toBe("你好")
+})
+
+test("collapses a stray paragraph separator without touching real breaks", () => {
+  expect(validateTranslation("First line.\n\nSecond line.", "第一行。\n\n%%\n\n第二行。")).toBe(
+    "第一行。\n\n第二行。",
+  )
+})
+
+test("still rejects a wrong separator count when the source has separators", () => {
+  expect(() => validateTranslation("A %% B", "甲 乙")).toThrow("separator")
+})
+
+test("rejects output that is only stray separators", () => {
+  expect(() => validateTranslation("hello", " %% ")).toThrow("Translation output is empty")
 })
 
 test("accepts a translation with no separators when source has none", () => {
