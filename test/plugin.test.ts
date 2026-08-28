@@ -98,7 +98,10 @@ test("registers the configured command and fails when configuration conflicts", 
   const config: Record<string, unknown> = {}
 
   await hooks.config?.(config as any)
-  expect((config.command as Record<string, any>).translate).toMatchObject({ agent: "opencode-translator" })
+  expect((config.command as Record<string, any>).translate).toMatchObject({
+    agent: "opencode-translator",
+    subtask: false,
+  })
   expect((config.agent as Record<string, any>)["opencode-translator"].model).toBeUndefined()
 
   const { hooks: collisionHooks } = await makeHooks()

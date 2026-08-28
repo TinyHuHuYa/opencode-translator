@@ -60,6 +60,7 @@ export function installPluginConfig(config: Config, options: NormalizedOptions):
   mutableConfig.agent ??= {}
   mutableConfig.command[options.command] = {
     agent: INTERNAL_AGENT_ID,
+    subtask: false,
     template: "$ARGUMENTS",
   }
   mutableConfig.agent[INTERNAL_AGENT_ID] = {
