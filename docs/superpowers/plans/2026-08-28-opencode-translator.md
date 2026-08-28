@@ -24,7 +24,7 @@
 
 ---
 
-### 任务 1：建立可构建、可测试的包与配置注入
+### Task 1 / 任务 1：建立可构建、可测试的包与配置注入
 
 **文件：**
 
@@ -232,7 +232,7 @@ git commit -m "chore: scaffold opencode translator package"
 
 ---
 
-### 任务 2：实现提示词渲染与 `/t` 命令信封
+### Task 2 / 任务 2：实现提示词渲染与 `/t` 命令信封
 
 **文件：**
 
@@ -377,7 +377,7 @@ git commit -m "feat: render translation prompts and parse t command"
 
 ---
 
-### 任务 3：实现译文提取、格式校验与安全错误
+### Task 3 / 任务 3：实现译文提取、格式校验与安全错误
 
 **文件：**
 
@@ -468,7 +468,7 @@ git commit -m "feat: validate translation output"
 
 ---
 
-### 任务 4：实现按会话跟踪和解析当前模型
+### Task 4 / 任务 4：实现按会话跟踪和解析当前模型
 
 **文件：**
 
@@ -557,7 +557,7 @@ git commit -m "feat: track the active opencode model"
 
 ---
 
-### 任务 5：实现 `translate` 工具与临时子会话
+### Task 5 / 任务 5：实现 `translate` 工具与临时子会话
 
 **文件：**
 
@@ -663,7 +663,7 @@ git commit -m "feat: add translate tool with child sessions"
 
 ---
 
-### 任务 6：组装插件 hooks 与 `/t` 端到端行为
+### Task 6 / 任务 6：组装插件 hooks 与 `/t` 端到端行为
 
 **文件：**
 
@@ -840,7 +840,7 @@ git commit -m "feat: integrate translator plugin hooks"
 
 ---
 
-### 任务 7：补齐文档、许可证与可发布包验证
+### Task 7 / 任务 7：补齐文档、许可证与可发布包验证
 
 **文件：**
 
@@ -916,7 +916,7 @@ git commit -m "docs: add installation and usage guide"
 
 ---
 
-### 任务 8：最终审查并同步到公开 GitHub 仓库
+### Task 8 / 任务 8：最终审查并同步到公开 GitHub 仓库
 
 **文件：**
 
