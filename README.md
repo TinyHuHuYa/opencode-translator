@@ -43,8 +43,6 @@ npm run deploy:local   # 构建并复制到 ~/.config/opencode/plugin/
 }
 ```
 
-`file://` 路径写进 `plugin` 数组不会加载插件；只有 npm 包名与自动发现目录两种方式可用。
-
 安装后重启 OpenCode 或重新打开会话，插件会注册命令和工具。若配置的命令名已存在，或 `opencode-translator` 代理名已存在，OpenCode 会显示冲突错误；插件不会覆盖原有配置。
 
 ## 发布新版本（维护者）
@@ -55,6 +53,34 @@ git push --follow-tags
 ```
 
 推送 `v*` tag 会触发 `.github/workflows/release.yml`：CI 跑 `npm run check`，然后创建 GitHub Release 并附上 `dist/opencode-translator.js`。
+
+## OpenCode 插件加载：实测结论（1.18.23，Windows）
+
+以下为对本插件针对 OpenCode `1.18.23` 的实测结果，用于解释上面为什么这样安装。
+
+**可用的加载方式**
+
+| 方式 | 结果 |
+| --- | --- |
+| 放进 `~/.config/opencode/plugin/`（全局）或 `<项目>/.opencode/plugin/` | ✅ 自动发现并加载；`plugin` / `plugins` 目录名都可以；`*.js` 与 `*.ts` 都可以；文件名任意 |
+| `"plugin": ["opencode-translator"]`（npm 包名） | ✅ 发布后可用；`["名字", { 选项 }]` 元组形式可传配置 |
+| `"plugin": ["名字@git+https://..."]`（git 规格） | ⚠️ 未跑通：克隆后目录为空、代理未注册；官方示例插件用此形式可用，疑与本仓库结构有关，未定位 |
+
+**不可用的方式**
+
+| 方式 | 结果 |
+| --- | --- |
+| `"plugin": ["file:///abs/path/plugin.js"]`（数组里写文件路径） | ❌ `config` hook 不执行，命令与代理都不注册 |
+| `"plugin": [["file:///...", { 选项 }]]`（文件路径 + 选项元组） | ❌ 同上 |
+| `opencode run "/t 中文 xxx"`（把斜杠命令写进消息） | ❌ 不展开，按普通提示词发给模型；无头调用要用 `opencode run --command t "中文" "xxx"` |
+
+**注意事项**
+
+- **不要同时放全局和单项目两份。** 第二份的 `config` hook 会抛 `Command 't' already exists`，但它的其它 hook（`chat.message`、`experimental.text.complete` 等）仍会运行，导致行为异常。
+- `opencode debug config` 只反映**自动发现插件**的 `config` hook 结果，不反映数组里声明的插件（那些在启动流程更晚才加载）。检查是否加载成功用 `opencode agent list`（应出现 `opencode-translator (subagent)`）或 TUI 命令面板里是否有 `/t`。
+- `export default { id, server }` 这种对象形式能正常加载，尽管二进制内置说明写的是"必须是函数"。
+- 命令配 `agent: opencode-translator`（`mode: subagent`）+ `subtask: false` 时，`/t` 在当前会话内联执行并沿用当前模型；`command.execute.before` → `chat.message` 依次触发，`output.message.system` 会被模型采纳。
+- 每次改动源码后必须重新部署（`npm run deploy:local` 或重新下载 Release 文件）并重启 OpenCode，否则加载的还是旧构建。
 
 ## 使用 `/t`
 
@@ -133,9 +159,13 @@ git push --follow-tags
 | 2 | 切换为模型 B | 不重启插件，在同一会话再运行 `/t 中文 Hello world` | 得到中文译文；会话/诊断信息显示此请求使用模型 B。 |
 | 3 | 模型 B | 要求代理调用 `translate`，例如传入 `to: "中文"`、`text: "Hello world"` | 工具仅返回译文；OpenCode 的会话/诊断信息显示调用使用模型 B，且临时子会话随后被清理。 |
 
-### TUI 加载检查
+### 加载检查
 
-在 OpenCode 1.18.23 中，启动后打开命令面板，确认可见 `/t`；再让代理列出或调用可用工具，确认存在 `translate`。若没有出现，查看 OpenCode 的插件加载诊断，确认配置路径、包安装位置和冲突错误。不要通过复制 API Key 来排查加载问题。
+- `opencode agent list` 应列出 `opencode-translator (subagent)`。
+- TUI 命令面板应可见 `/t`；让代理列出可用工具应存在 `translate`。
+- 无头快速验证：`opencode run --command t --model <provider/model> "中文" "Hello world"`，应只返回译文。
+
+若没有出现，参考上面「OpenCode 插件加载：实测结论」排查配置路径、加载方式和命令名冲突。不要通过复制 API Key 来排查加载问题。
 
 ## 开发验证
 
