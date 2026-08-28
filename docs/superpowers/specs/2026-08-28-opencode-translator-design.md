@@ -114,22 +114,20 @@ Direct translation without separators
 {{imt_style_guide}}
 ```
 
-源文本作为 user 消息发送，而不是插入系统提示词。user 消息采用以下确定格式：
+源文本作为 user 消息发送，而不是插入系统提示词。目标语言已在系统提示词中说明，user 消息按以下规则构造：
 
-```text
-Source language: {{from-or-auto}}
-Target language: {{to}}
+- 源语言自动识别（未显式提供 `from`，或 `from` 为空/`auto`/`auto-detect`）时，user 消息正文就是原始文本本身，不加任何前缀。
+- 显式提供非自动的 `from` 时，在原文前加一行 `Source language: {{from}}` 和一个空行。
 
-{{text}}
-```
+`/t` 命令没有 `from` 参数，因此总是走第一种情况。`translate` 工具可通过 `from` 走第二种情况。
 
 这样可以将可信的翻译规则与不可信的源文本分开，防止源文本意外改变系统模板。
 
 ### 4.1 占位符展开
 
 - `{{to}}`：必填，由调用方提供的目标语言名称。
-- `{{from}}`：提供时使用显式源语言；未提供时，user 消息中使用 `auto-detect`。
-- `{{text}}`：位于 user 消息正文中，而不是系统提示词内。
+- `{{from}}`：仅在显式提供且非自动值时，作为 user 消息的 `Source language:` 行；否则完全省略，由模型自行识别。
+- `{{text}}`：位于 user 消息正文中，而不是系统提示词内；自动识别源语言时正文即为原文本身。
 - `{{title_prompt}}`：缺省时为空；存在时生成边界清晰的网页标题上下文块。
 - `{{summary_prompt}}`：缺省时为空；存在时生成边界清晰的网页摘要上下文块。
 - `{{terms_prompt}}`：缺省时为空；存在时生成边界清晰的术语块。

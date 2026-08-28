@@ -89,7 +89,7 @@ test("turns /t arguments into a system-scoped translation message", async () => 
     messageOutput,
   )
   expect(messageOutput.message.system).toContain("professional Chinese native translator")
-  expect(messageOutput.parts[0].text).toContain("Target language: Chinese")
+  expect(messageOutput.parts[0].text).toBe("Hello")
   expect(messageOutput.parts[0].text).not.toContain("__OPENCODE_TRANSLATOR_V1__")
 })
 

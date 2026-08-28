@@ -101,5 +101,7 @@ export function renderSystemPrompt(context: Omit<PromptContext, "text" | "from">
 }
 
 export function renderUserPrompt(context: Pick<PromptContext, "to" | "text" | "from"> & { text: string }): string {
-  return `Source language: ${context.from ?? "auto-detect"}\nTarget language: ${context.to}\n\n${context.text}`
+  const from = context.from?.trim()
+  if (!from || /^auto(-?detect)?$/i.test(from)) return context.text
+  return `Source language: ${from}\n\n${context.text}`
 }

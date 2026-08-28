@@ -27,15 +27,14 @@ test("renders delimited title summary terms and style guide", () => {
   expect(prompt).toContain("Use polite Japanese.")
 })
 
-test("keeps source text exact in the user message body", () => {
-  expect(renderUserPrompt({ to: "中文", text: "  <b>Hello</b>\n" })).toBe(
-    "Source language: auto-detect\nTarget language: 中文\n\n  <b>Hello</b>\n",
-  )
+test("sends the source text verbatim when the language is auto-detected", () => {
+  expect(renderUserPrompt({ to: "中文", text: "  <b>Hello</b>\n" })).toBe("  <b>Hello</b>\n")
+  expect(renderUserPrompt({ to: "中文", from: "auto-detect", text: "Hi" })).toBe("Hi")
 })
 
-test("uses an explicit source language when provided", () => {
+test("prepends only an explicit non-auto source language", () => {
   expect(renderUserPrompt({ from: "English", to: "中文", text: "Hello" })).toBe(
-    "Source language: English\nTarget language: 中文\n\nHello",
+    "Source language: English\n\nHello",
   )
 })
 
@@ -71,9 +70,7 @@ test("marks and escapes untrusted title, summary, terms, and style context", () 
 
 test("preserves markdown and fenced code exactly in the user prompt", () => {
   const text = "# Heading\n\n```html\n<div>raw</div>\n```\n"
-  expect(renderUserPrompt({ to: "中文", text })).toBe(
-    `Source language: auto-detect\nTarget language: 中文\n\n${text}`,
-  )
+  expect(renderUserPrompt({ to: "中文", text })).toBe(text)
 })
 
 test("rejects a missing target language", () => {

@@ -127,7 +127,7 @@ test("returns the translation and deletes its child session", async () => {
     sessionID: "child-session",
     agent: "opencode-translator",
     model: { providerID: "provider", modelID: "model" },
-    text: "Source language: English\nTarget language: French\n\nhello",
+    text: "Source language: English\n\nhello",
   })
   expect(gateway.promptInputs[0].system).toContain("bonjour")
   expect(gateway.promptInputs[0].system).toContain("Use formal French")
