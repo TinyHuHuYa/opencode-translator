@@ -1,46 +1,46 @@
-# OpenCode Translator Plugin Design
+# OpenCode 翻译插件设计
 
-Date: 2026-08-28
-Status: Approved in conversation; awaiting written-spec review
+日期：2026-08-28
+状态：已在对话中确认，等待书面规格复核
 
-## 1. Purpose
+## 1. 目标
 
-Build an installable OpenCode plugin named `opencode-translator` that translates text with the model currently selected in OpenCode. The plugin must not connect to model providers directly, store API keys, or bind itself to DeepSeek or any other provider.
+构建一个名为 `opencode-translator`、可安装的 OpenCode 插件，使用 OpenCode 当前选中的模型翻译文本。插件不得直接连接模型提供商、存储 API 密钥，也不得绑定 DeepSeek 或任何其他提供商。
 
-The plugin exposes two entry points:
+插件提供两个入口：
 
-- `/t <target-language> <text>` for direct interactive translation.
-- A `translate` tool that OpenCode agents can call programmatically.
+- `/t <目标语言> <文本>`：用于直接交互式翻译。
+- `translate` 工具：供 OpenCode 代理以编程方式调用。
 
-Both entry points use the same translation prompt and preserve the user's current OpenCode provider and model selection.
+两个入口使用同一套翻译提示词，并沿用用户当前在 OpenCode 中选择的提供商和模型。
 
-## 2. Non-goals
+## 2. 非目标
 
-- Reimplementing OpenCode provider authentication or API clients.
-- Adding provider-specific request adapters.
-- Applying the request-rate or character-count defaults visible in the supplied reference image.
-- Automatically splitting long input.
-- Automatically inferring paragraph boundaries from blank lines.
-- Translating files in place or modifying workspace files.
-- Adding a separate graphical settings interface.
+- 重新实现 OpenCode 的提供商认证或 API 客户端。
+- 添加提供商专用的请求适配器。
+- 使用随附参考图片中显示的请求频率或字符数默认值。
+- 自动拆分长文本。
+- 根据空行自动推断段落边界。
+- 就地翻译文件或修改工作区文件。
+- 添加独立的图形化设置界面。
 
-## 3. Chosen Architecture
+## 3. 已选架构
 
-The plugin uses OpenCode-native configuration and SDK features:
+插件使用 OpenCode 原生配置和 SDK 能力：
 
-1. A plugin `config` hook registers a namespaced translator agent and the `/t` command.
-2. The translator agent contains the translation system prompt and does not specify a model.
-3. The `/t` command invokes that agent in the current session, so the command inherits the model selected for the session.
-4. The plugin registers a `translate` custom tool.
-5. For tool calls, the plugin resolves the parent session's current model, creates a temporary child session, invokes the translator agent with that exact model, extracts the translation, and removes the temporary session.
+1. 通过插件的 `config` hook 注册带命名空间的翻译代理和 `/t` 命令。
+2. 翻译代理包含翻译系统提示词，但不指定模型。
+3. `/t` 命令在当前会话中调用该代理，因此继承当前会话选中的模型。
+4. 插件注册一个 `translate` 自定义工具。
+5. 工具被调用时，插件解析父会话的当前模型，创建临时子会话，使用完全相同的模型调用翻译代理，提取译文后删除临时会话。
 
-The plugin never reads or persists provider credentials. All model access goes through OpenCode.
+插件不会读取或持久化提供商凭据。所有模型访问均通过 OpenCode 完成。
 
-### 3.1 Why this architecture
+### 3.1 选择该架构的原因
 
-OpenCode commands can target an agent, plugins can modify configuration and register tools, and session prompts can specify a provider/model pair. This lets the plugin reuse OpenCode's existing model routing and authentication while keeping the translation prompt in the system role.
+OpenCode 命令可以指定代理，插件可以修改配置并注册工具，会话提示请求也可以指定提供商/模型组合。因此，插件可以复用 OpenCode 现有的模型路由与认证，同时让翻译提示词真正处于 system 角色。
 
-Relevant OpenCode documentation and source:
+相关 OpenCode 文档与源码：
 
 - https://opencode.ai/docs/plugins/
 - https://opencode.ai/docs/commands/
@@ -48,9 +48,9 @@ Relevant OpenCode documentation and source:
 - https://opencode.ai/docs/sdk/
 - https://github.com/anomalyco/opencode/blob/dev/packages/plugin/src/index.ts
 
-## 4. Translation Prompt
+## 4. 翻译提示词
 
-The translator agent uses the following system-prompt template verbatim except for placeholder expansion:
+除占位符展开外，翻译代理原样使用以下系统提示词模板：
 
 ```text
 You are a professional {{to}} native translator who needs to fluently translate text into {{to}}.
@@ -113,7 +113,7 @@ Direct translation without separators
 {{imt_style_guide}}
 ```
 
-The source text is sent as a user message rather than interpolated into the system prompt. The user message has this deterministic shape:
+源文本作为 user 消息发送，而不是插入系统提示词。user 消息采用以下确定格式：
 
 ```text
 Source language: {{from-or-auto}}
@@ -122,52 +122,52 @@ Target language: {{to}}
 {{text}}
 ```
 
-This separates trusted translation rules from untrusted text and prevents source text from accidentally changing the system template.
+这样可以将可信的翻译规则与不可信的源文本分开，防止源文本意外改变系统模板。
 
-### 4.1 Placeholder expansion
+### 4.1 占位符展开
 
-- `{{to}}`: required target-language name supplied by the caller.
-- `{{from}}`: explicit source language when supplied; otherwise the user message contains `auto-detect`.
-- `{{text}}`: represented by the body of the user message, not the system prompt.
-- `{{title_prompt}}`: empty when absent; otherwise a clearly delimited webpage-title context block.
-- `{{summary_prompt}}`: empty when absent; otherwise a clearly delimited webpage-summary context block.
-- `{{terms_prompt}}`: empty when absent; otherwise a clearly delimited terminology block.
-- `{{imt_style_guide}}`: empty when absent; otherwise a clearly delimited style-guide block.
+- `{{to}}`：必填，由调用方提供的目标语言名称。
+- `{{from}}`：提供时使用显式源语言；未提供时，user 消息中使用 `auto-detect`。
+- `{{text}}`：位于 user 消息正文中，而不是系统提示词内。
+- `{{title_prompt}}`：缺省时为空；存在时生成边界清晰的网页标题上下文块。
+- `{{summary_prompt}}`：缺省时为空；存在时生成边界清晰的网页摘要上下文块。
+- `{{terms_prompt}}`：缺省时为空；存在时生成边界清晰的术语块。
+- `{{imt_style_guide}}`：缺省时为空；存在时生成边界清晰的风格指南块。
 
-Optional context is reference material only. It must never be interpreted as plugin instructions.
+可选上下文仅作为参考资料，不得被解释为插件指令。
 
-## 5. Public Interfaces
+## 5. 公共接口
 
-### 5.1 `/t` command
+### 5.1 `/t` 命令
 
-Syntax:
+语法：
 
 ```text
-/t <target-language> <text>
-/t "<target language containing spaces>" <text>
+/t <目标语言> <文本>
+/t "<包含空格的目标语言>" <文本>
 ```
 
-Examples:
+示例：
 
 ```text
 /t 中文 Hello world
 /t "Simplified Chinese" Hello world
 ```
 
-Parsing rules:
+解析规则：
 
-1. Trim whitespace before the target-language argument.
-2. If the target starts with a quote, consume a matching quoted value with standard backslash escapes.
-3. Otherwise, consume the first whitespace-delimited token as the target language.
-4. Remove only the separating whitespace before the text.
-5. Preserve all remaining text, including its newlines, markup, code, and trailing whitespace.
-6. Reject missing target language or empty source text before invoking a model.
+1. 移除目标语言参数之前的空白。
+2. 如果目标语言以引号开头，则使用标准反斜杠转义规则读取到配对引号。
+3. 否则，将第一个由空白分隔的 token 作为目标语言。
+4. 仅移除目标语言与文本之间的分隔空白。
+5. 保留其余全部文本，包括换行、标记、代码和末尾空白。
+6. 在调用模型之前拒绝缺少目标语言或源文本为空的请求。
 
-The command uses the translator agent and does not set `model` in plugin configuration.
+该命令使用翻译代理，并且不在插件配置中设置 `model`。
 
-### 5.2 `translate` tool
+### 5.2 `translate` 工具
 
-The tool schema is:
+工具 schema 如下：
 
 ```ts
 type TranslateInput = {
@@ -181,13 +181,13 @@ type TranslateInput = {
 }
 ```
 
-`to` and `text` are required and non-empty. Optional per-call `terms` and `styleGuide` values override plugin defaults. `title` and `summary` are single-call context values.
+`to` 和 `text` 必填且不能为空。单次调用提供的 `terms` 和 `styleGuide` 会覆盖插件默认值。`title` 和 `summary` 是仅用于该次调用的上下文值。
 
-The tool description instructs the calling agent to return the tool result verbatim, without commentary. The tool itself returns only the extracted assistant text.
+工具描述会指示调用代理逐字返回工具结果，不添加说明。工具本身只返回提取出的 assistant 文本。
 
-## 6. Plugin Configuration
+## 6. 插件配置
 
-Example:
+示例：
 
 ```jsonc
 {
@@ -205,7 +205,7 @@ Example:
 }
 ```
 
-Supported options:
+支持的选项：
 
 ```ts
 type TranslatorOptions = {
@@ -216,87 +216,87 @@ type TranslatorOptions = {
 }
 ```
 
-Defaults:
+默认值：
 
-- `command`: `t`
-- `temperature`: `0.1`
-- `styleGuide`: empty
-- `terms`: empty
+- `command`：`t`
+- `temperature`：`0.1`
+- `styleGuide`：空
+- `terms`：空
 
-The plugin has no model, provider, API URL, API key, character-limit, rate-limit, chunk-size, or retry option in the initial release.
+初始版本不提供模型、提供商、API URL、API 密钥、字符限制、频率限制、分块大小或重试选项。
 
-If the configured command name or internal agent name already exists, initialization fails with an actionable conflict error. The plugin never silently replaces user configuration.
+如果配置的命令名或内部代理名已经存在，初始化会失败并给出可操作的冲突错误。插件绝不会静默替换用户配置。
 
-## 7. Model Resolution
+## 7. 模型解析
 
-The plugin tracks the model actually used by each session from OpenCode message and parameter hooks. A tool call resolves its model in this order:
+插件通过 OpenCode 的消息与参数 hook 跟踪每个会话实际使用的模型。工具调用按以下顺序解析模型：
 
-1. The most recent model captured for the tool's parent session.
-2. The most recent user message in that session that has model metadata.
-3. Failure with an explicit `No active model found for session` error.
+1. 为工具父会话捕获到的最新模型。
+2. 该会话中最近一条含有模型元数据的 user 消息。
+3. 如果仍不存在，则以明确的 `No active model found for session` 错误结束。
 
-The plugin must not fall back to a global default or a different model, because that would violate the user's current-model choice.
+插件不得回退到全局默认模型或其他模型，否则会违背用户对当前模型的选择。
 
-The temporary child prompt explicitly includes the resolved `{ providerID, modelID }` and translator agent ID.
+临时子会话的提示请求会显式包含解析出的 `{ providerID, modelID }` 和翻译代理 ID。
 
-## 8. Temporary Session Lifecycle
+## 8. 临时会话生命周期
 
-For a `translate` tool call:
+`translate` 工具调用流程如下：
 
-1. Validate and normalize the tool input.
-2. Resolve the parent session model.
-3. Create a child session with `parentID` set to the tool's parent session ID.
-4. Prompt the child session with the resolved model, translator agent, and rendered request.
-5. Extract all assistant text parts in response order.
-6. Validate the result.
-7. Return the exact extracted text.
-8. Delete the child session in a `finally` block.
+1. 校验并规范化工具输入。
+2. 解析父会话模型。
+3. 创建子会话，并将 `parentID` 设为工具父会话 ID。
+4. 使用解析出的模型、翻译代理和渲染后的请求提示子会话。
+5. 按响应顺序提取所有 assistant 文本 part。
+6. 校验结果。
+7. 返回提取出的原始文本。
+8. 在 `finally` 块中删除子会话。
 
-If cleanup fails after translation succeeds, the plugin logs the cleanup failure through OpenCode's structured logger without replacing the successful translation. If both translation and cleanup fail, the translation error remains primary and cleanup is attached as diagnostic context.
+如果翻译成功后清理失败，插件通过 OpenCode 的结构化日志记录清理失败，但不替换成功的译文。如果翻译与清理都失败，翻译错误保持为主要错误，清理错误附加为诊断上下文。
 
-Cancellation propagates from `ToolContext.abort` to the child request. Cleanup still runs after cancellation.
+取消操作通过 `ToolContext.abort` 传递给子请求。取消后仍会执行清理。
 
-## 9. Format Handling and Validation
+## 9. 格式处理与校验
 
-The plugin performs deterministic validation only:
+插件只执行确定性校验：
 
-- Empty source text is invalid.
-- Input is never automatically chunked.
-- Input without `%%` is sent without `%%` and output must not contain `%%`.
-- Input with `%%` records the exact separator count; output must have the same count.
-- HTML, Markdown, fenced code, indentation, line endings, and blank lines are not rewritten.
-- The plugin does not regex-rewrite translations, strip explanatory-looking sentences, or attempt to repair malformed model output.
-- Assistant text parts are concatenated in response order without trimming their content.
-- A result with no non-whitespace text is invalid.
+- 空源文本无效。
+- 绝不自动拆分输入。
+- 输入不含 `%%` 时，发送内容也不含 `%%`，输出不得包含 `%%`。
+- 输入含有 `%%` 时，记录准确的分隔符数量；输出必须具有相同数量。
+- 不改写 HTML、Markdown、围栏代码、缩进、换行符或空行。
+- 插件不会用正则表达式改写译文、删除看似解释性的句子，也不会尝试修复模型的错误输出。
+- 按响应顺序连接 assistant 文本 part，不裁剪其中内容。
+- 不包含任何非空白文本的结果无效。
 
-If separator validation fails, the error contains the expected and actual separator counts plus the original model output. This prevents silent data loss while preserving the output for diagnosis.
+如果分隔符校验失败，错误中包含预期数量、实际数量以及模型原始输出。这样可以避免静默丢失数据，同时保留输出供诊断。
 
-The system prompt contains both “do not add `%%` when absent” and a multi-paragraph example using explicit `%%`. The plugin resolves this by treating `%%` as an explicit caller-controlled separator. It never infers or inserts separators from blank lines.
+系统提示词中同时存在“输入没有 `%%` 时不要添加 `%%`”以及使用显式 `%%` 的多段示例。插件将 `%%` 视为由调用方明确控制的分隔符，从而消除歧义；它绝不会根据空行推断或插入分隔符。
 
-## 10. Error Handling
+## 10. 错误处理
 
-- Invalid command syntax reports the accepted `/t` forms without invoking a model.
-- Invalid tool arguments identify the failing field.
-- Model-resolution failure does not select a fallback model.
-- Provider and model failures retain the provider/model ID and public error details but remove headers, credentials, tokens, and secrets.
-- Empty model responses are failures.
-- Separator-count mismatches are failures and retain the raw model output in diagnostic data.
-- No automatic retry occurs in the initial release.
-- Temporary sessions are cleaned up after success, failure, and cancellation.
-- Structured logs never contain source text, translated text, API keys, or authentication metadata.
+- 无效命令语法会报告可接受的 `/t` 格式，且不调用模型。
+- 无效工具参数会指出出错字段。
+- 模型解析失败时不选择后备模型。
+- 提供商和模型错误会保留提供商/模型 ID 及公开错误详情，但移除请求头、凭据、token 和密钥。
+- 模型返回空内容时视为失败。
+- 分隔符数量不匹配时视为失败，并在诊断数据中保留原始模型输出。
+- 初始版本不自动重试。
+- 成功、失败和取消后都会清理临时会话。
+- 结构化日志绝不包含源文本、译文、API 密钥或认证元数据。
 
-## 11. Project Structure
+## 11. 项目结构
 
 ```text
 opencode-translator/
 ├── src/
-│   ├── index.ts              # Plugin entry and hook registration
-│   ├── command.ts            # /t parsing and command integration
-│   ├── config.ts             # Option validation and config injection
-│   ├── model.ts              # Per-session model tracking and resolution
-│   ├── prompt.ts             # System/user prompt rendering
-│   ├── result.ts             # Assistant text extraction and validation
-│   └── tool.ts               # translate tool and child-session lifecycle
+│   ├── index.ts              # 插件入口与 hook 注册
+│   ├── command.ts            # /t 解析与命令集成
+│   ├── config.ts             # 选项校验与配置注入
+│   ├── model.ts              # 按会话跟踪和解析模型
+│   ├── prompt.ts             # system/user 提示词渲染
+│   ├── result.ts             # assistant 文本提取与校验
+│   └── tool.ts               # translate 工具与子会话生命周期
 ├── test/
 │   ├── command.test.ts
 │   ├── config.test.ts
@@ -310,31 +310,31 @@ opencode-translator/
 └── LICENSE
 ```
 
-The repository root is the package root; the tree label above is descriptive and does not require an extra nested directory.
+仓库根目录就是包根目录；上方树形结构中的标签仅用于说明，不要求再创建一层嵌套目录。
 
-## 12. Testing Strategy
+## 12. 测试策略
 
-Unit tests cover:
+单元测试覆盖：
 
-- Unquoted and quoted target-language parsing.
-- Unicode target-language names.
-- Multiline text and exact remaining-text preservation.
-- Missing target and missing source errors.
-- Every optional prompt-context combination.
-- Default and per-call terminology/style-guide precedence.
-- Inputs with zero, one, and multiple `%%` separators.
-- HTML, Markdown, and fenced code passed through unchanged.
-- Model tracking and selection changes within a session.
-- Latest-message model fallback.
-- No-model failure.
-- Temporary session creation, prompting, extraction, and cleanup.
-- Translation failure, cancellation, and cleanup failure.
-- Existing command and agent conflicts.
-- Redaction of sensitive error fields.
+- 不带引号和带引号的目标语言解析。
+- Unicode 目标语言名称。
+- 多行文本及剩余文本的精确保留。
+- 缺少目标语言和源文本时的错误。
+- 可选提示词上下文的所有组合。
+- 默认术语/风格指南与单次调用值之间的优先级。
+- 包含零个、一个或多个 `%%` 分隔符的输入。
+- HTML、Markdown 和围栏代码原样通过。
+- 会话内的模型跟踪与模型切换。
+- 从最新消息获取模型的后备路径。
+- 找不到模型时的失败路径。
+- 临时会话创建、提示、提取与清理。
+- 翻译失败、取消与清理失败。
+- 已有命令和代理冲突。
+- 敏感错误字段脱敏。
 
-All SDK interactions use deterministic fake clients in automated tests. Automated tests require no provider account, API key, or network access.
+所有 SDK 交互在自动化测试中使用确定性的伪客户端。自动化测试不需要提供商账户、API 密钥或网络连接。
 
-Verification commands:
+验证命令：
 
 ```text
 bun test
@@ -342,32 +342,32 @@ bun run typecheck
 bun run build
 ```
 
-The README also contains a manual smoke-test matrix for `/t` and `translate` using two user-configured OpenCode models. The tester switches the active model between calls and verifies from OpenCode diagnostics that the second call uses the newly selected model.
+README 还会包含 `/t` 和 `translate` 的手工冒烟测试矩阵，使用两个由用户配置的 OpenCode 模型。测试者在两次调用之间切换当前模型，并通过 OpenCode 诊断信息验证第二次调用使用了新选择的模型。
 
-## 13. Acceptance Criteria
+## 13. 验收标准
 
-The implementation is accepted when:
+满足以下条件时，实施通过验收：
 
-1. Installing the npm package and adding it to `plugin` makes `/t` and `translate` available.
-2. `/t 中文 Hello` returns only the Chinese translation from the current OpenCode model.
-3. `/t "Simplified Chinese" Hello` parses the quoted target correctly.
-4. The tool accepts all documented optional context fields.
-5. Switching the active OpenCode model changes the model used by both entry points without plugin reconfiguration.
-6. No API key or provider credential is read, stored, or logged by the plugin.
-7. The plugin neither inserts nor removes `%%` separators.
-8. Model failures, invalid input, empty output, and separator mismatches are explicit.
-9. Temporary sessions are cleaned up on every exit path.
-10. Tests, type checking, and package build all pass.
+1. 安装 npm 包并将其加入 `plugin` 后，`/t` 和 `translate` 均可使用。
+2. `/t 中文 Hello` 只返回当前 OpenCode 模型生成的中文译文。
+3. `/t "Simplified Chinese" Hello` 能正确解析带引号的目标语言。
+4. 工具接受所有已记录的可选上下文字段。
+5. 切换当前 OpenCode 模型后，两个入口使用的模型都会改变，无需重新配置插件。
+6. 插件不读取、不存储、也不记录任何 API 密钥或提供商凭据。
+7. 插件既不插入也不删除 `%%` 分隔符。
+8. 模型失败、输入无效、输出为空以及分隔符不匹配都会明确报错。
+9. 每条退出路径都会清理临时会话。
+10. 测试、类型检查和包构建全部通过。
 
-## 14. Future Extensions
+## 14. 后续扩展
 
-The following are deliberately deferred:
+以下功能明确推迟：
 
-- Opt-in long-text chunking.
-- Opt-in retries for format violations.
-- File and clipboard translation.
-- Language aliases and saved target-language presets.
-- Streaming tool output.
-- Translation-memory persistence.
+- 可选启用的长文本分块。
+- 可选启用的格式违规重试。
+- 文件与剪贴板翻译。
+- 语言别名与保存的目标语言预设。
+- 流式工具输出。
+- 翻译记忆持久化。
 
-Each extension requires a separate design decision because it changes cost, privacy, output determinism, or user interaction.
+每项扩展都需要单独进行设计决策，因为它们会改变成本、隐私、输出确定性或用户交互。
