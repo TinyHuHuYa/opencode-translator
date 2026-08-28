@@ -38,7 +38,7 @@ const server: Plugin = async (input, rawOptions) => {
         terms: options.terms,
         styleGuide: options.styleGuide,
       })
-      textPart.text = renderUserPrompt({ to: request.to, text: request.text })
+      textPart.text = renderUserPrompt({ to: request.to, from: request.from, text: request.text })
       pendingSources.set(event.sessionID, request.text)
     },
     "chat.params": async (event) => {

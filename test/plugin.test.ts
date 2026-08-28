@@ -93,6 +93,21 @@ test("turns /t arguments into a system-scoped translation message", async () => 
   expect(messageOutput.parts[0].text).not.toContain("__OPENCODE_TRANSLATOR_V1__")
 })
 
+test("carries a colon-specified source language into the /t user message", async () => {
+  const { hooks } = await makeHooks()
+  const commandOutput = { parts: textParts("en:中文 Hello") }
+  await hooks["command.execute.before"]?.(
+    { command: "t", sessionID: "session", arguments: "en:中文 Hello" },
+    commandOutput,
+  )
+  expect(decodeCommandEnvelope(commandOutput.parts[0].text)).toEqual({ from: "en", to: "中文", text: "Hello" })
+
+  const messageOutput = { message: userMessage(), parts: commandOutput.parts }
+  await hooks["chat.message"]?.({ sessionID: "session" }, messageOutput)
+  expect(messageOutput.message.system).toContain("professional 中文 native translator")
+  expect(messageOutput.parts[0].text).toBe("Source language: en\n\nHello")
+})
+
 test("registers the configured command and fails when configuration conflicts", async () => {
   const { hooks } = await makeHooks({ command: "translate" })
   const config: Record<string, unknown> = {}
