@@ -85,7 +85,10 @@ export function normalizeOptions(raw: Record<string, unknown> = {}): NormalizedO
 const AGENT_PROMPT = "You are a translation subagent. Follow the system instruction for each request exactly and return only the requested translation."
 
 export function installPluginConfig(config: Config, options: NormalizedOptions): void {
-  const mutableConfig = config as Config & { command?: Record<string, unknown>; agent?: Record<string, unknown> }
+  const mutableConfig = config as unknown as {
+    command?: Record<string, unknown>
+    agent?: Record<string, unknown>
+  }
   if (mutableConfig.command?.[options.command]) {
     throw new Error(`Command '${options.command}' already exists`)
   }
@@ -103,8 +106,7 @@ export function installPluginConfig(config: Config, options: NormalizedOptions):
     mode: "subagent",
     maxSteps: 1,
     temperature: options.temperature,
-    tools: { "*": false },
-    permission: { edit: "deny", bash: "deny", webfetch: "deny" },
+    permission: { "*": "deny" },
     prompt: AGENT_PROMPT,
   }
 }

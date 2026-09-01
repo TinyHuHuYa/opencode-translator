@@ -80,6 +80,7 @@ git push --follow-tags
 - `opencode debug config` 只反映**自动发现插件**的 `config` hook 结果，不反映数组里声明的插件（那些在启动流程更晚才加载）。检查是否加载成功用 `opencode agent list`（应出现 `opencode-translator (subagent)`）或 TUI 命令面板里是否有 `/t`。
 - `export default { id, server }` 这种对象形式能正常加载，尽管二进制内置说明写的是"必须是函数"。
 - 命令配 `agent: opencode-translator`（`mode: subagent`）+ `subtask: false` 时，`/t` 在当前会话内联执行并沿用当前模型；`command.execute.before` → `chat.message` 依次触发，`output.message.system` 会被模型采纳。
+- 翻译代理通过 `permission: { "*": "deny" }` 禁用全部工具，避免把待译代码误当作任务后调用 `read`、`grep` 等工具。OpenCode 1.18.25 不再读取代理配置中的旧 `tools` 字段。
 - 每次改动源码后必须重新部署（`npm run deploy:local` 或重新下载 Release 文件）并重启 OpenCode，否则加载的还是旧构建。
 
 ## 使用 `/t`

@@ -35,12 +35,13 @@ describe("normalizeOptions", () => {
 })
 
 describe("installPluginConfig", () => {
-  test("registers command and restricted translator agent without a model", () => {
+  test("denies every translator tool through the active permission API", () => {
     const config: Record<string, any> = {}
     installPluginConfig(config, normalizeOptions())
     expect(config.command.t).toMatchObject({ agent: "opencode-translator", template: "$ARGUMENTS" })
     expect(config.agent["opencode-translator"].model).toBeUndefined()
-    expect(config.agent["opencode-translator"].tools).toEqual({ "*": false })
+    expect(config.agent["opencode-translator"].permission).toEqual({ "*": "deny" })
+    expect(config.agent["opencode-translator"].tools).toBeUndefined()
   })
 
   test("does not overwrite an existing command", () => {
