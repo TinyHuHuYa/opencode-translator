@@ -84,11 +84,18 @@ function createSdkClient() {
 function createSubject(gateway = new FakeGateway()) {
   const models = new ModelTracker()
   models.remember("parent-session", { providerID: "provider", modelID: "model" })
+  const promptCalls: Array<{ op: "register" | "release"; sessionID: string; prompt?: string }> = []
+  const prompts = {
+    register: (sessionID: string, prompt: string) => promptCalls.push({ op: "register", sessionID, prompt }),
+    release: (sessionID: string) => promptCalls.push({ op: "release", sessionID }),
+  }
   return {
     gateway,
+    promptCalls,
     tool: createTranslateTool({
       gateway,
       models,
+      prompts,
       options: normalizeOptions({ terms: { hello: "DEFAULT" }, styleGuide: "DEFAULT STYLE" }),
     }),
   }
@@ -108,7 +115,7 @@ function context(signal = new AbortController().signal) {
 }
 
 test("returns the translation and deletes its child session", async () => {
-  const { gateway, tool } = createSubject()
+  const { gateway, tool, promptCalls } = createSubject()
 
   await expect(tool.execute({
     to: "French",
@@ -122,6 +129,10 @@ test("returns the translation and deletes its child session", async () => {
 
   expect(gateway.createdParents).toEqual(["parent-session"])
   expect(gateway.deletedSessions).toEqual(["child-session"])
+  expect(promptCalls).toEqual([
+    { op: "register", sessionID: "child-session", prompt: "Source language: English\n\nhello" },
+    { op: "release", sessionID: "child-session" },
+  ])
   expect(gateway.promptInputs).toHaveLength(1)
   expect(gateway.promptInputs[0]).toMatchObject({
     sessionID: "child-session",
@@ -137,7 +148,7 @@ test("returns the translation and deletes its child session", async () => {
 })
 
 test("deletes its child session when the model request fails", async () => {
-  const { gateway, tool } = createSubject()
+  const { gateway, tool, promptCalls } = createSubject()
   gateway.promptFailure = new Error("authorization=secret")
 
   await expect(tool.execute({ to: "French", text: "hello" }, context())).rejects.toThrow(
@@ -145,6 +156,7 @@ test("deletes its child session when the model request fails", async () => {
   )
 
   expect(gateway.deletedSessions).toEqual(["child-session"])
+  expect(promptCalls.at(-1)).toEqual({ op: "release", sessionID: "child-session" })
 })
 
 test("deletes its child session when the request is cancelled", async () => {

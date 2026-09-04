@@ -1,6 +1,7 @@
 import type { Plugin, PluginModule } from "@opencode-ai/plugin"
 import { decodeCommandEnvelope, encodeCommandEnvelope, parseCommandArguments } from "./command"
-import { installPluginConfig, INTERNAL_AGENT_ID, normalizeOptions } from "./config"
+import { installPluginConfig, normalizeOptions } from "./config"
+import { isolateTranslationSource, type TransformMessage } from "./isolation"
 import { ModelTracker } from "./model"
 import { renderSystemPrompt, renderUserPrompt } from "./prompt"
 import { validateTranslation } from "./result"
@@ -11,13 +12,29 @@ const server: Plugin = async (input, rawOptions) => {
   const models = new ModelTracker()
   const gateway = createSessionGateway(input.client, input.directory)
   const pendingSources = new Map<string, string>()
+  // Exact rendered prompt per session, used to isolate the translation request
+  // from history and text injected by other plugins.
+  const pendingPrompts = new Map<string, string>()
+  const prompts = {
+    register: (sessionID: string, prompt: string) => {
+      pendingPrompts.set(sessionID, prompt)
+    },
+    release: (sessionID: string) => {
+      pendingPrompts.delete(sessionID)
+    },
+  }
+
+  const forget = (sessionID: string) => {
+    pendingSources.delete(sessionID)
+    pendingPrompts.delete(sessionID)
+  }
 
   return {
     config: async (config) => {
       installPluginConfig(config, options)
     },
     tool: {
-      translate: createTranslateTool({ gateway, models, options }),
+      translate: createTranslateTool({ gateway, models, options, prompts }),
     },
     "command.execute.before": async (event, output) => {
       if (event.command !== options.command) return
@@ -40,6 +57,7 @@ const server: Plugin = async (input, rawOptions) => {
       })
       textPart.text = renderUserPrompt({ to: request.to, from: request.from, text: request.text })
       pendingSources.set(event.sessionID, request.text)
+      pendingPrompts.set(event.sessionID, textPart.text)
     },
     "chat.params": async (event) => {
       models.remember(event.sessionID, {
@@ -48,27 +66,10 @@ const server: Plugin = async (input, rawOptions) => {
       })
     },
     "experimental.chat.messages.transform": async (_event, output) => {
-      let latestUser: (typeof output.messages)[number] | undefined
-      for (let index = output.messages.length - 1; index >= 0; index--) {
-        if (output.messages[index].info.role === "user") {
-          latestUser = output.messages[index]
-          break
-        }
-      }
-      if (!latestUser || latestUser.info.role !== "user" || latestUser.info.agent !== INTERNAL_AGENT_ID) return
-
-      let sourcePart: (typeof latestUser.parts)[number] | undefined
-      for (let index = latestUser.parts.length - 1; index >= 0; index--) {
-        if (latestUser.parts[index].type === "text") {
-          sourcePart = latestUser.parts[index]
-          break
-        }
-      }
-      if (!sourcePart) return
-      output.messages.splice(0, output.messages.length, {
-        info: latestUser.info,
-        parts: [sourcePart],
-      })
+      isolateTranslationSource(
+        output.messages as unknown as TransformMessage[],
+        (sessionID) => pendingPrompts.get(sessionID),
+      )
     },
     "experimental.text.complete": async (event, output) => {
       const source = pendingSources.get(event.sessionID)
@@ -76,17 +77,17 @@ const server: Plugin = async (input, rawOptions) => {
       try {
         output.text = validateTranslation(source, output.text)
       } finally {
-        pendingSources.delete(event.sessionID)
+        forget(event.sessionID)
       }
     },
     event: async ({ event }) => {
       if (event.type === "session.error" || event.type === "session.idle") {
         const sessionID = event.properties.sessionID
-        if (sessionID) pendingSources.delete(sessionID)
+        if (sessionID) forget(sessionID)
       }
       if (event.type === "session.deleted") {
         const sessionID = event.properties.info.id
-        pendingSources.delete(sessionID)
+        forget(sessionID)
         models.forget(sessionID)
       }
     },

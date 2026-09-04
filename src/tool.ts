@@ -86,10 +86,16 @@ export function createSessionGateway(
   }
 }
 
+export type PromptRegistry = {
+  register(sessionID: string, prompt: string): void
+  release(sessionID: string): void
+}
+
 export type TranslateToolDependencies = {
   gateway: SessionGateway
   models: ModelTracker
   options: NormalizedOptions
+  prompts?: PromptRegistry
 }
 
 function requireNonEmpty(value: string, field: string): void {
@@ -167,6 +173,8 @@ export function createTranslateTool(dependencies: TranslateToolDependencies): Re
         childSessionID = await dependencies.gateway.createChild(context.sessionID)
         const terms: Terms = args.terms ?? dependencies.options.terms
         const styleGuide = args.styleGuide ?? dependencies.options.styleGuide
+        const text = renderUserPrompt({ to: args.to, text: args.text, from: args.from })
+        dependencies.prompts?.register(childSessionID, text)
         const parts = await dependencies.gateway.promptChild({
           sessionID: childSessionID,
           agent: INTERNAL_AGENT_ID,
@@ -178,7 +186,7 @@ export function createTranslateTool(dependencies: TranslateToolDependencies): Re
             terms,
             styleGuide,
           }),
-          text: renderUserPrompt({ to: args.to, text: args.text, from: args.from }),
+          text,
           signal: context.abort,
         })
         return validateTranslation(args.text, extractAssistantText(parts))
@@ -186,6 +194,7 @@ export function createTranslateTool(dependencies: TranslateToolDependencies): Re
         throw publicToolError(error, model)
       } finally {
         if (childSessionID) {
+          dependencies.prompts?.release(childSessionID)
           try {
             await dependencies.gateway.deleteSession(childSessionID)
           } catch (cleanupError) {
