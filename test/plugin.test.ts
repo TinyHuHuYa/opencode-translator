@@ -142,6 +142,30 @@ test("isolates /t source from text injected into conversation history", async ()
   ])
 })
 
+test("keeps the registered /t prompt even when another plugin appends a later part", async () => {
+  const { hooks } = await makeHooks()
+  const commandOutput = { parts: textParts("中文 Only this.") }
+  await hooks["command.execute.before"]?.(
+    { command: "t", sessionID: "session", arguments: "中文 Only this." },
+    commandOutput,
+  )
+  const current = { message: userMessage("opencode-translator", "current"), parts: commandOutput.parts }
+  await hooks["chat.message"]?.({ sessionID: "session" }, current)
+
+  const messages = [
+    {
+      info: current.message,
+      parts: [
+        ...current.parts,
+        ...textParts("<EXTREMELY_IMPORTANT>appended after the source</EXTREMELY_IMPORTANT>"),
+      ],
+    },
+  ]
+  await hooks["experimental.chat.messages.transform"]?.({}, { messages } as any)
+
+  expect(messages).toEqual([{ info: current.message, parts: textParts("Only this.") }])
+})
+
 test("removes text injected before the source in a new translation session", async () => {
   const { hooks } = await makeHooks()
   const current = {

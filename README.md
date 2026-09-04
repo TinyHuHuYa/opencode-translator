@@ -103,7 +103,8 @@ git push --atomic origin main v0.1.x
 - `export default { id, server }` 这种对象形式能正常加载，尽管二进制内置说明写的是"必须是函数"。
 - 命令配 `agent: opencode-translator`（`mode: subagent`）+ `subtask: false` 时，`/t` 在当前会话内联执行并沿用当前模型；`command.execute.before` → `chat.message` 依次触发，`output.message.system` 会被模型采纳。
 - 翻译代理通过 `permission: { "*": "deny" }` 禁用全部工具，避免把待译代码误当作任务后调用 `read`、`grep` 等工具。OpenCode 1.18.25–1.18.27 应使用 `permission`；旧 `tools` 字段不能实现该限制。
-- 调用模型前，翻译代理只保留当前待译消息，排除历史对话以及 Superpowers 等插件注入的引导文本；该隔离只影响本次模型输入，不会修改会话记录。
+- 调用模型前，插件在 `experimental.chat.messages.transform` 里把消息列表缩减为"仅本次渲染出的翻译提示"这一条：按**精确文本匹配**保留插件自己写入的提示，其余（历史对话、Superpowers 等注入的 `<EXTREMELY_IMPORTANT>` 引导块）全部丢弃；只有在拿不到该提示时才回退到"最后一个文本 part"。该隔离只改本次模型输入，不动会话记录。
+- 该隔离要求本插件的 `experimental.chat.messages.transform` 在其它同类插件**之后**运行。自动发现安装（方式一/方式二）会让本插件排在最后，满足此条件；若改用配置数组，请把本插件放在 Superpowers 等注入型插件**后面**。
 - 每次改动源码后必须重新部署（`npm run deploy:local` 或重新下载 Release 文件）并重启 OpenCode，否则加载的还是旧构建。
 
 ## 使用 `/t`
@@ -208,7 +209,7 @@ npm run check
 npm pack --dry-run
 ```
 
-构建入口只提供默认导出的 OpenCode 插件模块（`{ id, server }`）。
+构建入口只提供默认导出的 OpenCode 插件模块（`{ id, server }`）。`@opencode-ai/plugin` 固定为与目标运行时一致的精确版本（当前 `1.18.27`）；升级 OpenCode 后应同步更新它，让类型与运行时对齐。
 
 ## 许可证
 

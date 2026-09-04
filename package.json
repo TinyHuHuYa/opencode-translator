@@ -40,9 +40,6 @@
   "bugs": {
     "url": "https://github.com/TinyHuHuYa/opencode-translator/issues"
   },
-  "dependencies": {
-    "@opencode-ai/plugin": "1.18.23"
-  },
   "devDependencies": {
     "@types/bun": "1.4.0",
     "bun": "1.4.0",
@@ -51,5 +48,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "1.18.27"
   }
 }
