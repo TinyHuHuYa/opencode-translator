@@ -1,6 +1,6 @@
 {
   "name": "opencode-translator",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Translate text with the model currently selected in OpenCode.",
   "type": "module",
   "main": "./dist/opencode-translator.js",
