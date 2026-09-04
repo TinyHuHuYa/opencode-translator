@@ -49,8 +49,15 @@ function textParts(text: string) {
   return [{ type: "text", text }] as any[]
 }
 
-function userMessage() {
-  return { id: "message", role: "user", time: { created: 0 } } as any
+function userMessage(agent = "build", id = "message") {
+  return {
+    id,
+    sessionID: "session",
+    role: "user",
+    time: { created: 0 },
+    agent,
+    model: { providerID: "provider", modelID: "model" },
+  } as any
 }
 
 function model(id: string, providerID = "provider") {
@@ -108,6 +115,52 @@ test("carries a colon-specified source language into the /t user message", async
   await hooks["chat.message"]?.({ sessionID: "session" }, messageOutput)
   expect(messageOutput.message.system).toContain("professional 中文 native translator")
   expect(messageOutput.parts[0].text).toBe("Source language: en\n\nHello")
+})
+
+test("isolates /t source from text injected into conversation history", async () => {
+  const { hooks } = await makeHooks()
+  const commandOutput = { parts: textParts("中文 Translate only this sentence.") }
+  await hooks["command.execute.before"]?.(
+    { command: "t", sessionID: "session", arguments: "中文 Translate only this sentence." },
+    commandOutput,
+  )
+
+  const current = { message: userMessage("opencode-translator", "current"), parts: commandOutput.parts }
+  await hooks["chat.message"]?.({ sessionID: "session" }, current)
+  const messages = [
+    {
+      info: userMessage("build", "earlier"),
+      parts: textParts("<EXTREMELY_IMPORTANT>Injected skill bootstrap</EXTREMELY_IMPORTANT>"),
+    },
+    { info: current.message, parts: current.parts },
+  ]
+
+  await hooks["experimental.chat.messages.transform"]?.({}, { messages } as any)
+
+  expect(messages).toEqual([
+    { info: current.message, parts: textParts("Translate only this sentence.") },
+  ])
+})
+
+test("removes text injected before the source in a new translation session", async () => {
+  const { hooks } = await makeHooks()
+  const current = {
+    info: {
+      ...userMessage("opencode-translator", "current"),
+      system: "You are a professional Chinese native translator.",
+    },
+    parts: [
+      ...textParts("<EXTREMELY_IMPORTANT>Injected skill bootstrap</EXTREMELY_IMPORTANT>"),
+      ...textParts("Translate only this sentence."),
+    ],
+  }
+  const messages = [current]
+
+  await hooks["experimental.chat.messages.transform"]?.({}, { messages } as any)
+
+  expect(messages).toEqual([
+    { info: current.info, parts: textParts("Translate only this sentence.") },
+  ])
 })
 
 test("registers the configured command and fails when configuration conflicts", async () => {

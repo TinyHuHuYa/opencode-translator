@@ -1,6 +1,6 @@
 import type { Plugin, PluginModule } from "@opencode-ai/plugin"
 import { decodeCommandEnvelope, encodeCommandEnvelope, parseCommandArguments } from "./command"
-import { installPluginConfig, normalizeOptions } from "./config"
+import { installPluginConfig, INTERNAL_AGENT_ID, normalizeOptions } from "./config"
 import { ModelTracker } from "./model"
 import { renderSystemPrompt, renderUserPrompt } from "./prompt"
 import { validateTranslation } from "./result"
@@ -45,6 +45,29 @@ const server: Plugin = async (input, rawOptions) => {
       models.remember(event.sessionID, {
         providerID: event.model.providerID,
         modelID: event.model.id,
+      })
+    },
+    "experimental.chat.messages.transform": async (_event, output) => {
+      let latestUser: (typeof output.messages)[number] | undefined
+      for (let index = output.messages.length - 1; index >= 0; index--) {
+        if (output.messages[index].info.role === "user") {
+          latestUser = output.messages[index]
+          break
+        }
+      }
+      if (!latestUser || latestUser.info.role !== "user" || latestUser.info.agent !== INTERNAL_AGENT_ID) return
+
+      let sourcePart: (typeof latestUser.parts)[number] | undefined
+      for (let index = latestUser.parts.length - 1; index >= 0; index--) {
+        if (latestUser.parts[index].type === "text") {
+          sourcePart = latestUser.parts[index]
+          break
+        }
+      }
+      if (!sourcePart) return
+      output.messages.splice(0, output.messages.length, {
+        info: latestUser.info,
+        parts: [sourcePart],
       })
     },
     "experimental.text.complete": async (event, output) => {

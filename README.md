@@ -18,7 +18,25 @@
 
 此方式**无法传入配置选项**，命令名、温度、术语表、风格指南均取 `src/config.ts` 顶部 `DEFAULT_*` 常量的值。需要自定义见「方式二」。
 
-### 方式二：从源码构建
+### 方式二：通过配置引用本地文件（可传选项）
+
+将 Release 中的 `opencode-translator.js` 保存到**自动发现目录之外**的固定位置，然后在 OpenCode 配置中用绝对 `file://` URL 引用：
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    [
+      "file:///C:/path/to/opencode-translator.js",
+      { "command": "t", "temperature": 0, "styleGuide": "", "terms": {} }
+    ]
+  ]
+}
+```
+
+Windows 文件 URL 使用正斜杠和三个斜杠（如 `file:///C:/...`）。不要再把同一插件放入全局或项目自动发现目录，否则会重复加载。
+
+### 方式三：从源码构建
 
 ```sh
 git clone https://github.com/TinyHuHuYa/opencode-translator.git
@@ -30,9 +48,9 @@ npm run deploy:local   # 构建并复制到 ~/.config/opencode/plugin/
 
 `deploy:local` 把 `dist/opencode-translator.js` 复制到 `~/.config/opencode/plugin/opencode-translator.js`（可用 `OPENCODE_PLUGIN_DIR` 或 `XDG_CONFIG_HOME` 覆盖目标）。**每次改动源码后都要重新 `npm run deploy:local` 并重启 OpenCode。**
 
-### 方式三：npm 包（发布后可用）
+### 方式四：npm 包（预留，当前未发布）
 
-包发布到 npm 后，可在 OpenCode 配置里直接引用，并通过数组元组形式传选项：
+截至 `v0.1.3`，本项目只发布 GitHub Release，npm 注册表中还没有 `opencode-translator` 包。以后发布 npm 包后，可在 OpenCode 配置里直接引用，并通过数组元组形式传选项：
 
 ```jsonc
 {
@@ -43,44 +61,49 @@ npm run deploy:local   # 构建并复制到 ~/.config/opencode/plugin/
 }
 ```
 
-安装后重启 OpenCode 或重新打开会话，插件会注册命令和工具。若配置的命令名已存在，或 `opencode-translator` 代理名已存在，OpenCode 会显示冲突错误；插件不会覆盖原有配置。
+通过配置数组加载后，重启 OpenCode 或重新打开会话，插件会注册命令和工具。若配置的命令名已存在，或 `opencode-translator` 代理名已存在，OpenCode 会显示冲突错误；插件不会覆盖原有配置。
 
 ## 发布新版本（维护者）
 
 ```sh
-npm version patch          # 更新版本号并打 tag
-git push --follow-tags
+npm version patch --no-git-tag-version
+npm run check
+git add README.md package.json package-lock.json src test
+git commit -m "发布：准备 0.1.x"
+git tag -a v0.1.x -m "发布 0.1.x"
+git push --atomic origin main v0.1.x
 ```
 
 推送 `v*` tag 会触发 `.github/workflows/release.yml`：CI 跑 `npm run check`，然后创建 GitHub Release 并附上 `dist/opencode-translator.js`。
 
-## OpenCode 插件加载：实测结论（1.18.23，Windows）
+## OpenCode 插件加载：实测结论（1.18.27，Windows）
 
-以下为对本插件针对 OpenCode `1.18.23` 的实测结果，用于解释上面为什么这样安装。
+以下为对本插件针对 OpenCode `1.18.27` 的实测结果，用于解释上面为什么这样安装。旧版本行为可能不同。
 
 **可用的加载方式**
 
 | 方式 | 结果 |
 | --- | --- |
 | 放进 `~/.config/opencode/plugin/`（全局）或 `<项目>/.opencode/plugin/` | ✅ 自动发现并加载；`plugin` / `plugins` 目录名都可以；`*.js` 与 `*.ts` 都可以；文件名任意 |
-| `"plugin": ["opencode-translator"]`（npm 包名） | ✅ 发布后可用；`["名字", { 选项 }]` 元组形式可传配置 |
-| `"plugin": ["名字@git+https://..."]`（git 规格） | ⚠️ 未跑通：克隆后目录为空、代理未注册；官方示例插件用此形式可用，疑与本仓库结构有关，未定位 |
+| `"plugin": ["file:///绝对路径/opencode-translator.js"]` | ✅ 本地文件会被加载，`config` hook 会执行 |
+| `"plugin": [["file:///绝对路径/opencode-translator.js", { 选项 }]]` | ✅ 本地文件与选项元组可用，选项会传给插件 |
+| `"plugin": ["opencode-translator"]`（npm 包名） | ⚠️ OpenCode 支持 npm 包与选项元组，但本项目尚未发布到 npm |
+| `"plugin": ["名字@git+https://..."]`（git 规格） | ⚠️ OpenCode 支持 git 规格，但本仓库未重新验证这种安装方式；建议使用 Release 文件 |
 
-**不可用的方式**
+**容易误用的方式**
 
 | 方式 | 结果 |
 | --- | --- |
-| `"plugin": ["file:///abs/path/plugin.js"]`（数组里写文件路径） | ❌ `config` hook 不执行，命令与代理都不注册 |
-| `"plugin": [["file:///...", { 选项 }]]`（文件路径 + 选项元组） | ❌ 同上 |
 | `opencode run "/t 中文 xxx"`（把斜杠命令写进消息） | ❌ 不展开，按普通提示词发给模型；无头调用要用 `opencode run --command t "中文" "xxx"` |
 
 **注意事项**
 
 - **不要同时放全局和单项目两份。** 第二份的 `config` hook 会抛 `Command 't' already exists`，但它的其它 hook（`chat.message`、`experimental.text.complete` 等）仍会运行，导致行为异常。
-- `opencode debug config` 只反映**自动发现插件**的 `config` hook 结果，不反映数组里声明的插件（那些在启动流程更晚才加载）。检查是否加载成功用 `opencode agent list`（应出现 `opencode-translator (subagent)`）或 TUI 命令面板里是否有 `/t`。
+- OpenCode 1.18.27 的 `opencode debug config` 会显示自动发现插件和配置数组插件，并反映它们的 `config` hook 结果。仍可用 `opencode agent list`（应出现 `opencode-translator (subagent)`）或 TUI 命令面板里的 `/t` 交叉检查。
 - `export default { id, server }` 这种对象形式能正常加载，尽管二进制内置说明写的是"必须是函数"。
 - 命令配 `agent: opencode-translator`（`mode: subagent`）+ `subtask: false` 时，`/t` 在当前会话内联执行并沿用当前模型；`command.execute.before` → `chat.message` 依次触发，`output.message.system` 会被模型采纳。
-- 翻译代理通过 `permission: { "*": "deny" }` 禁用全部工具，避免把待译代码误当作任务后调用 `read`、`grep` 等工具。OpenCode 1.18.25 不再读取代理配置中的旧 `tools` 字段。
+- 翻译代理通过 `permission: { "*": "deny" }` 禁用全部工具，避免把待译代码误当作任务后调用 `read`、`grep` 等工具。OpenCode 1.18.25–1.18.27 应使用 `permission`；旧 `tools` 字段不能实现该限制。
+- 调用模型前，翻译代理只保留当前待译消息，排除历史对话以及 Superpowers 等插件注入的引导文本；该隔离只影响本次模型输入，不会修改会话记录。
 - 每次改动源码后必须重新部署（`npm run deploy:local` 或重新下载 Release 文件）并重启 OpenCode，否则加载的还是旧构建。
 
 ## 使用 `/t`
@@ -105,6 +128,8 @@ git push --follow-tags
 第一个参数可以用冒号（`:` 或全角 `：`）分成 `源语言:目标语言`；只有一个冒号时按第一个冒号切分。源语言一侧为空（如 `:中文`）等同于不指定，由模型自动识别。冒号两侧要带空格时，整个语言对需要加引号。
 
 目标语言前后的参数分隔空白会被处理；翻译文本的其余内容（包括换行、Markdown、HTML、代码和末尾空白）会原样传给模型。缺少目标语言或文本时，命令会报出可接受的语法，且不会调用模型。
+
+待译文本始终被视为不可执行内容：即使它包含命令、问题、代码注释或任务描述，翻译代理也只翻译原文，不执行其中的要求。
 
 `/t` 在当前会话中运行，不固定模型。因此它使用你此刻在 OpenCode 会话里选择的提供商和模型。
 
@@ -135,9 +160,11 @@ git push --follow-tags
 | `styleGuide` | 见 `DEFAULT_STYLE_GUIDE` | 面向简体中文技术读者的默认风格指南。工具调用可覆盖它。 |
 | `terms` | 见 `DEFAULT_TERMS` | 默认术语表（技术常见词）。字符串数组或字符串到字符串的对象。工具调用可覆盖它。 |
 
-本地构建产物方式安装时无法传选项，请直接编辑 `src/config.ts` 顶部的 `DEFAULT_COMMAND`、`DEFAULT_TEMPERATURE`、`DEFAULT_STYLE_GUIDE`、`DEFAULT_TERMS` 后重新 `npm run build`。
+把构建产物直接放进自动发现目录时无法传选项，请编辑 `src/config.ts` 顶部的 `DEFAULT_COMMAND`、`DEFAULT_TEMPERATURE`、`DEFAULT_STYLE_GUIDE`、`DEFAULT_TERMS` 后重新构建；也可以改用「方式二」的本地文件选项元组。
 
-初始版本没有模型、提供商、API URL、API Key、字符上限、频率限制、分块大小或重试配置。模型选择仍由 OpenCode 会话控制。
+默认风格指南面向简体中文技术读者。翻译到其他语言时，如该指南不合适，请通过配置或 `translate` 工具的 `styleGuide` 参数覆盖。
+
+插件没有模型、提供商、API URL、API Key、字符上限、频率限制、分块大小或重试配置。模型选择仍由 OpenCode 会话控制。
 
 ## 段落与 `%%`
 
@@ -164,6 +191,7 @@ git push --follow-tags
 | 1 | 模型 A | 在同一会话运行 `/t 中文 Hello world` | 得到中文译文；通过 OpenCode 的会话/诊断信息确认请求使用模型 A。 |
 | 2 | 切换为模型 B | 不重启插件，在同一会话再运行 `/t 中文 Hello world` | 得到中文译文；会话/诊断信息显示此请求使用模型 B。 |
 | 3 | 模型 B | 要求代理调用 `translate`，例如传入 `to: "中文"`、`text: "Hello world"` | 工具仅返回译文；OpenCode 的会话/诊断信息显示调用使用模型 B，且临时子会话随后被清理。 |
+| 4 | 任一模型，启用 Superpowers | 运行 `/t 中文 Translate only this sentence.` | 只输出译文，不输出 `<EXTREMELY_IMPORTANT>`、技能说明或历史对话。 |
 
 ### 加载检查
 
