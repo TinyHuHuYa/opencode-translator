@@ -7,7 +7,7 @@ export type Terms = Record<string, string> | string[]
 // ---------------------------------------------------------------------------
 // Local-install defaults.
 // The auto-discovery plugin directory cannot pass options, so edit these to
-// change behaviour when installing from `.opencode/plugin/`. Plugins loaded
+// change behaviour when installing from `.opencode/plugins/`. Plugins loaded
 // through a config tuple (local file or package) can override every value.
 // ---------------------------------------------------------------------------
 

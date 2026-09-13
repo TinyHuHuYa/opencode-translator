@@ -10,11 +10,11 @@
 
 1. 从 [Releases](https://github.com/TinyHuHuYa/opencode-translator/releases) 下载 `opencode-translator.js`。
 2. 放进 OpenCode 的插件自动发现目录，**文件名保持不变**：
-   - 全局（所有项目）：`~/.config/opencode/plugin/opencode-translator.js`
-   - 单项目：`<项目>/.opencode/plugin/opencode-translator.js`
+   - 全局（所有项目）：`~/.config/opencode/plugins/opencode-translator.js`
+   - 单项目：`<项目>/.opencode/plugins/opencode-translator.js`
 3. 重启 OpenCode。
 
-更新时下载新版覆盖同一文件、重启即可。`plugin` 与 `plugins` 两个目录名都可用。不要同时放全局和单项目两份，否则第二份的 `config` hook 会因命令名冲突报错（且其它 hook 仍会运行，导致行为异常）。
+更新时下载新版覆盖同一文件、重启即可。`plugins` 是 OpenCode 官方文档使用的目录名，旧的 `plugin` 目录名也可用；如果以前装在 `plugin/` 下，改用 `plugins/` 时请删除旧文件。不要同时放全局和单项目两份，否则第二份的 `config` hook 会因命令名冲突报错（且其它 hook 仍会运行，导致行为异常）。
 
 此方式**无法传入配置选项**，命令名、温度、术语表、风格指南均取 `src/config.ts` 顶部 `DEFAULT_*` 常量的值。需要自定义见「方式二」。
 
@@ -43,10 +43,10 @@ git clone https://github.com/TinyHuHuYa/opencode-translator.git
 cd opencode-translator
 npm install            # prepare 脚本会自动构建 dist/
 # 需要自定义时，编辑 src/config.ts 顶部的 DEFAULT_* 常量
-npm run deploy:local   # 构建并复制到 ~/.config/opencode/plugin/
+npm run deploy:local   # 构建并复制到 ~/.config/opencode/plugins/
 ```
 
-`deploy:local` 把 `dist/opencode-translator.js` 复制到 `~/.config/opencode/plugin/opencode-translator.js`（可用 `OPENCODE_PLUGIN_DIR` 或 `XDG_CONFIG_HOME` 覆盖目标）。**每次改动源码后都要重新 `npm run deploy:local` 并重启 OpenCode。**
+`deploy:local` 把 `dist/opencode-translator.js` 复制到 `~/.config/opencode/plugins/opencode-translator.js`（可用 `OPENCODE_PLUGIN_DIR` 或 `XDG_CONFIG_HOME` 覆盖目标）。**每次改动源码后都要重新 `npm run deploy:local` 并重启 OpenCode。**
 
 ### 方式四：npm 包（预留，当前未发布）
 
@@ -84,7 +84,7 @@ git push --atomic origin main v0.1.x
 
 | 方式 | 结果 |
 | --- | --- |
-| 放进 `~/.config/opencode/plugin/`（全局）或 `<项目>/.opencode/plugin/` | ✅ 自动发现并加载；`plugin` / `plugins` 目录名都可以；`*.js` 与 `*.ts` 都可以；文件名任意 |
+| 放进 `~/.config/opencode/plugins/`（全局）或 `<项目>/.opencode/plugins/` | ✅ 自动发现并加载；`plugin` / `plugins` 目录名都可以；`*.js` 与 `*.ts` 都可以；文件名任意 |
 | `"plugin": ["file:///绝对路径/opencode-translator.js"]` | ✅ 本地文件会被加载，`config` hook 会执行 |
 | `"plugin": [["file:///绝对路径/opencode-translator.js", { 选项 }]]` | ✅ 本地文件与选项元组可用，选项会传给插件 |
 | `"plugin": ["opencode-translator"]`（npm 包名） | ⚠️ OpenCode 支持 npm 包与选项元组，但本项目尚未发布到 npm |

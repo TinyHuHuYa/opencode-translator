@@ -12,7 +12,7 @@ const target =
   join(
     process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"),
     "opencode",
-    "plugin",
+    "plugins",
   )
 
 mkdirSync(target, { recursive: true })
