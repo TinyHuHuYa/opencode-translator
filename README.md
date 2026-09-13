@@ -50,7 +50,7 @@ npm run deploy:local   # 构建并复制到 ~/.config/opencode/plugins/
 
 ### 方式四：npm 包（预留，当前未发布）
 
-截至 `v0.1.3`，本项目只发布 GitHub Release，npm 注册表中还没有 `opencode-translator` 包。以后发布 npm 包后，可在 OpenCode 配置里直接引用，并通过数组元组形式传选项：
+截至 `v0.1.5`，本项目只发布 GitHub Release，npm 注册表中还没有 `opencode-translator` 包。以后发布 npm 包后，可在 OpenCode 配置里直接引用，并通过数组元组形式传选项：
 
 ```jsonc
 {
