@@ -4,6 +4,8 @@
 
 本插件不读取、保存或记录提供商凭据，也不需要插件专用 API Key。请先按 OpenCode 自身的方式配置并登录你要使用的模型提供商。
 
+同一份翻译逻辑还提供 **Pi 版**（Pi coding agent 及其桌面客户端 Pi Desktop），见下文「在 Pi / Pi Desktop 中使用」。
+
 ## 安装
 
 ### 方式一：下载预构建文件（推荐）
@@ -74,7 +76,41 @@ git tag -a v0.1.x -m "发布 0.1.x"
 git push --atomic origin main v0.1.x
 ```
 
-推送 `v*` tag 会触发 `.github/workflows/release.yml`：CI 跑 `npm run check`，然后创建 GitHub Release 并附上 `dist/opencode-translator.js`。
+推送 `v*` tag 会触发 `.github/workflows/release.yml`：CI 跑 `npm run check`，然后创建 GitHub Release 并附上 `dist/opencode-translator.js`（OpenCode 版）和 `dist/pi-translator.js`（Pi 版）。
+
+## 在 Pi / Pi Desktop 中使用
+
+OpenCode 插件接口与 Pi 的扩展接口不同，所以 Pi 用的是单独的扩展文件 `pi-translator.js`（源码在 [`pi/translator.ts`](pi/translator.ts)，翻译提示词、`/t` 语法解析、`%%` 校验与 OpenCode 版共用）。Pi Desktop 只是启动并驱动 `pi` 进程的图形界面，所以放进 Pi 的扩展目录即可，不需要在 Pi Desktop 里单独安装。
+
+### 安装
+
+1. 先装好 Pi（Pi Desktop 也需要它）：`npm install -g @earendil-works/pi-coding-agent`（Pi 要求 Node ≥ 22.19）。
+2. 从 [Releases](https://github.com/TinyHuHuYa/opencode-translator/releases) 下载 `pi-translator.js`，放进 Pi 的用户扩展目录：
+   - Windows：`C:\Users\<你>\.pi\agent\extensions\pi-translator.js`
+   - macOS / Linux：`~/.pi/agent/extensions/pi-translator.js`
+3. 新开一个会话（已打开的会话里运行 `/reload`）。
+
+从源码构建时用 `npm run deploy:pi`，它会构建并复制到上面的目录（`PI_CODING_AGENT_DIR` 可改变 Pi 的配置目录，`PI_EXTENSIONS_DIR` 可直接指定目标目录）。每次改动源码后都要重新部署并新开会话。
+
+### 用法
+
+与 OpenCode 版相同：
+
+```text
+/t 中文 Hello world
+/t en:中文 Hello world
+/t "Simplified Chinese" Hello world
+```
+
+`translate` 工具也同样可用（参数见下文「使用 `translate` 工具」）。
+
+### 行为说明
+
+- `/t` 作为一次普通的对话轮次运行，所以译文以普通助手消息出现在任何客户端里；原文和译文会留在会话历史中。
+- 翻译这一轮会：替换为翻译专用的 system 提示词、让模型只看到待译文本（排除历史对话和其它扩展注入的内容）、禁用全部工具（`/t` 结束后自动恢复）、移除模型自行添加的 `%%`。因此待译文本里的命令、问题、代码注释都只会被翻译，不会被执行。
+- 使用当前会话选中的模型和思考等级。思考等级较高时翻译会变慢，可在翻译前调低。
+- Pi 的扩展接口没有给扩展传选项的途径：命令名、术语表、风格指南取 `src/config.ts` 顶部 `DEFAULT_*` 常量；`temperature` 对 Pi 版不生效。
+- 已在 Pi 1.3.0 的 RPC 模式（Pi Desktop 使用的协议）下验证：普通会话后接 `/t`、指令性文本、`en:中文`、Markdown 与 `/t` 之后工具恢复。
 
 ## OpenCode 插件加载：实测结论（1.18.27，Windows）
 
@@ -209,7 +245,7 @@ npm run check
 npm pack --dry-run
 ```
 
-构建入口只提供默认导出的 OpenCode 插件模块（`{ id, server }`）。`@opencode-ai/plugin` 固定为与目标运行时一致的精确版本（当前 `1.18.27`）；升级 OpenCode 后应同步更新它，让类型与运行时对齐。
+构建入口只提供默认导出的 OpenCode 插件模块（`{ id, server }`）。 Pi 版的类型检查使用 `@earendil-works/pi-coding-agent` 与 `@earendil-works/pi-ai`（开发依赖，固定为 `1.3.0`），升级 Pi 后应同步更新。两个构建产物各自独立（构建使用 `--no-splitting`，不会拆出共享文件）。`@opencode-ai/plugin` 固定为与目标运行时一致的精确版本（当前 `1.18.27`）；升级 OpenCode 后应同步更新它，让类型与运行时对齐。
 
 ## 许可证
 
